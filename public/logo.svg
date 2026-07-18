@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1000" width="100%" height="100%">
+  <!-- Background -->
+  <rect width="1000" height="1000" fill="#ffffff" />
+
+  <!-- Subtle golden-beige sweeping leaf branch on the right -->
+  <!-- Main stem sweeping from bottom center-left to upper-right -->
+  <path d="M 450 750 C 650 650, 850 500, 1000 250" fill="none" stroke="#d5c8ab" stroke-width="4" stroke-linecap="round" />
+  
+  <!-- Pairs of golden leaves on the branch -->
+  <!-- Leaf 1 -->
+  <path d="M 600 680 C 650 670, 700 650, 720 620 C 680 640, 630 660, 600 680 Z" fill="#d5c8ab" opacity="0.85" />
+  <path d="M 600 680 C 580 640, 570 590, 590 560 C 610 590, 610 640, 600 680 Z" fill="#e2d8bd" opacity="0.85" />
+  
+  <!-- Leaf 2 -->
+  <path d="M 700 600 C 760 590, 810 570, 835 530 C 785 555, 735 580, 700 600 Z" fill="#d5c8ab" opacity="0.85" />
+  <path d="M 700 600 C 680 550, 670 500, 695 470 C 715 500, 715 560, 700 600 Z" fill="#e2d8bd" opacity="0.85" />
+
+  <!-- Leaf 3 -->
+  <path d="M 800 500 C 860 485, 910 460, 935 410 C 885 440, 835 470, 800 500 Z" fill="#d5c8ab" opacity="0.85" />
+  <path d="M 800 500 C 780 450, 770 400, 795 370 C 815 400, 815 460, 800 500 Z" fill="#e2d8bd" opacity="0.85" />
+
+  <!-- Leaf 4 -->
+  <path d="M 900 380 C 955 360, 995 320, 1010 270 C 965 305, 920 340, 900 380 Z" fill="#d5c8ab" opacity="0.85" />
+  <path d="M 900 380 C 880 330, 870 280, 895 250 C 915 280, 915 340, 900 380 Z" fill="#e2d8bd" opacity="0.85" />
+
+  <!-- The stylized green "K" -->
+  <!-- Left vertical stem -->
+  <path d="M 170 395 L 170 690 C 170 695, 172 700, 180 700 L 205 700 C 210 700, 215 695, 215 690 L 215 400 C 215 395, 210 390, 205 390 L 180 390 C 172 390, 170 392, 170 395 Z" fill="#4ea72a" />
+  
+  <!-- Bottom serif/stand of K -->
+  <path d="M 110 695 L 110 700 C 110 703, 115 705, 120 705 L 260 705 C 265 705, 270 703, 270 700 L 270 695 C 270 692, 265 690, 260 690 L 215 690 L 170 690 L 120 690 C 115 690, 110 692, 110 695 Z" fill="#4ea72a" />
+
+  <!-- Stylized leaf sprout at the top-left of the K-stem -->
+  <!-- Leaf 1 (large pointing up-left) -->
+  <path d="M 205 395 C 150 360, 50 210, 10 210 C 10 210, 80 210, 170 290 C 190 310, 200 340, 205 395 Z" fill="#7cb342" />
+  <!-- Leaf 1 center vein -->
+  <path d="M 205 395 C 160 330, 110 260, 10 210" fill="none" stroke="#a2d56c" stroke-width="3" />
+
+  <!-- Leaf 2 (medium pointing up-right) -->
+  <path d="M 205 395 C 210 330, 250 230, 295 230 C 295 230, 260 270, 225 330 C 215 350, 210 375, 205 395 Z" fill="#84cc16" />
+  <!-- Leaf 2 center vein -->
+  <path d="M 205 395 C 215 340, 240 280, 295 230" fill="none" stroke="#bef264" stroke-width="2.5" />
+
+  <!-- Leaf 3 (small pointing mid-right) -->
+  <path d="M 205 395 C 220 370, 245 320, 250 315 C 250 315, 235 340, 215 375 C 210 385, 207 390, 205 395 Z" fill="#84cc16" opacity="0.9" />
+
+  <!-- Right upper arm of "K" -->
+  <path d="M 215 540 C 235 480, 280 410, 340 395 C 320 420, 290 480, 215 540 Z" fill="#4ea72a" />
+  <path d="M 215 540 C 260 480, 310 420, 340 395 C 310 450, 250 510, 215 545 Z" fill="#3f8f20" />
+
+  <!-- Right lower leg of "K" -->
+  <path d="M 215 540 C 250 590, 350 740, 505 770 C 440 760, 300 700, 215 540 Z" fill="#4ea72a" />
+  <path d="M 215 540 C 260 600, 340 710, 505 770 C 420 750, 280 660, 215 540 Z" fill="#3f8f20" opacity="0.3" />
+
+  <!-- Elegant text on the right side -->
+  <!-- "Craft" on top -->
+  <text x="325" y="525" font-family="Georgia, 'Playfair Display', 'Times New Roman', serif" font-size="160" font-weight="bold" fill="#4a371c" letter-spacing="2">Craft</text>
+  
+  <!-- "alash" on bottom -->
+  <text x="340" y="655" font-family="Georgia, 'Playfair Display', 'Times New Roman', serif" font-size="140" font-weight="bold" fill="#4a371c" letter-spacing="4">alash</text>
+</svg>

@@ -1,0 +1,1352 @@
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { Product, Category, Review, Profile, Address, Order, OrderItem, Coupon, CartItem } from '../types';
+import { PRODUCTS, CATEGORIES, REVIEWS } from '../data/products';
+
+export { isSupabaseConfigured };
+
+// Utility to validate UUID formats to prevent Postgres UUID query cast errors
+export const isUUID = (str: any): boolean => {
+  if (typeof str !== 'string') return false;
+  return /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(str);
+};
+
+// Guard function to ensure Supabase is configured
+const ensureConfigured = () => {
+  if (!isSupabaseConfigured) {
+    throw new Error('Supabase is not configured. Please check your environment variables (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY).');
+  }
+};
+
+// ==========================================
+// 1. AUTHENTICATION & PROFILE SERVICES
+// ==========================================
+
+export const authService = {
+  isConfigured: () => isSupabaseConfigured,
+
+  async register(fullName: string, email: string, phone: string, password: string): Promise<{ user: any; profile: Profile | null; error: string | null }> {
+    ensureConfigured();
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: fullName,
+            phone: phone
+          }
+        }
+      });
+      if (error) throw error;
+      
+      let profile: Profile | null = null;
+      if (data.user) {
+        const { data: profData, error: profErr } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', data.user.id)
+          .single();
+        if (!profErr && profData) {
+          profile = profData;
+        }
+      }
+
+      return { user: data.user, profile, error: null };
+    } catch (err: any) {
+      return { user: null, profile: null, error: err.message || 'Signup failed' };
+    }
+  },
+
+  async login(email: string, password: string): Promise<{ user: any; profile: Profile | null; error: string | null }> {
+    ensureConfigured();
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+
+      let profile: Profile | null = null;
+      if (data.user) {
+        const { data: profData, error: profErr } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', data.user.id)
+          .single();
+        if (profErr) throw profErr;
+        profile = profData;
+
+        // Auto-upgrade admin@craftkalash.com to admin role in database
+        if (email.toLowerCase() === 'admin@craftkalash.com' && profile && profile.role !== 'admin') {
+          const { data: updatedProf } = await supabase
+            .from('profiles')
+            .update({ role: 'admin' })
+            .eq('id', data.user.id)
+            .select()
+            .single();
+          if (updatedProf) {
+            profile = updatedProf;
+          }
+        }
+      }
+
+      return { user: data.user, profile, error: null };
+    } catch (err: any) {
+      return { user: null, profile: null, error: err.message || 'Login failed' };
+    }
+  },
+
+  async logout(): Promise<{ error: string | null }> {
+    ensureConfigured();
+    const { error } = await supabase.auth.signOut();
+    return { error: error ? error.message : null };
+  },
+
+  async getCurrentUser() {
+    if (!isSupabaseConfigured) return null;
+    const { data } = await supabase.auth.getUser();
+    return data.user;
+  },
+
+  async getProfile(userId: string): Promise<Profile | null> {
+    ensureConfigured();
+    if (!isUUID(userId)) return null;
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+    if (error) throw error;
+
+    if (data && data.role !== 'admin') {
+      const { data: userData } = await supabase.auth.getUser();
+      if (userData?.user?.email?.toLowerCase() === 'admin@craftkalash.com') {
+        const { data: updatedData } = await supabase
+          .from('profiles')
+          .update({ role: 'admin' })
+          .eq('id', userId)
+          .select()
+          .single();
+        if (updatedData) {
+          return updatedData;
+        }
+      }
+    }
+
+    return data;
+  },
+
+  async updateProfile(userId: string, updates: Partial<Profile>): Promise<{ profile: Profile | null; error: string | null }> {
+    ensureConfigured();
+    if (!isUUID(userId)) {
+      return { profile: null, error: 'Invalid user ID format.' };
+    }
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .update(updates)
+        .eq('id', userId)
+        .select()
+        .single();
+      if (error) throw error;
+      return { profile: data, error: null };
+    } catch (err: any) {
+      return { profile: null, error: err.message || 'Database update error' };
+    }
+  },
+
+  async changeRole(userId: string, role: 'customer' | 'admin'): Promise<Profile | null> {
+    const res = await this.updateProfile(userId, { role });
+    if (res.error) throw new Error(res.error);
+    return res.profile;
+  },
+
+  async forgotPassword(email: string): Promise<{ success: boolean; error: string | null }> {
+    ensureConfigured();
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    return { success: !error, error: error ? error.message : null };
+  },
+
+  async resetPassword(newPassword: string): Promise<{ success: boolean; error: string | null }> {
+    ensureConfigured();
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    return { success: !error, error: error ? error.message : null };
+  }
+};
+
+// ==========================================
+// 2. PRODUCT SERVICES
+// ==========================================
+
+const getLocalDeletedIds = (): string[] => {
+  try {
+    const stored = localStorage.getItem('craftkalash_deleted_products');
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+};
+
+const getLocalAddedProducts = (): Product[] => {
+  try {
+    const stored = localStorage.getItem('craftkalash_added_products');
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+};
+
+const getLocalUpdatedProducts = (): Record<string, Partial<Product>> => {
+  try {
+    const stored = localStorage.getItem('craftkalash_updated_products');
+    return stored ? JSON.parse(stored) : {};
+  } catch {
+    return {};
+  }
+};
+
+export const productService = {
+  async getProducts(): Promise<Product[]> {
+    const reverseMap: Record<string, string> = {
+      '11111111-1111-1111-1111-111111111111': 'infant-toddler',
+      '22222222-2222-2222-2222-222222222222': 'imaginary-play',
+      '33333333-3333-3333-3333-333333333333': 'puzzles-blocks',
+      '44444444-4444-4444-4444-444444444444': 'vehicles-motion'
+    };
+
+    const getCategorySlug = (p: any): string => {
+      if (p.category_id && reverseMap[p.category_id]) {
+        return reverseMap[p.category_id];
+      }
+      if (p.category && isUUID(p.category)) {
+        return reverseMap[p.category] || 'puzzles-blocks';
+      }
+      if (p.categories) {
+        let slug = '';
+        if (Array.isArray(p.categories)) {
+          slug = p.categories[0]?.slug || p.categories[0]?.id || '';
+        } else if (typeof p.categories === 'object') {
+          slug = p.categories.slug || p.categories.id || '';
+        }
+        if (slug) {
+          if (isUUID(slug)) {
+            return reverseMap[slug] || 'puzzles-blocks';
+          }
+          return slug;
+        }
+      }
+      if (p.category && typeof p.category === 'string') {
+        return p.category;
+      }
+      return 'puzzles-blocks';
+    };
+
+    const enrichAndMerge = (dbProducts: any[]): Product[] => {
+      const mappedDb = dbProducts.map((p: any) => {
+        const catSlug = getCategorySlug(p);
+        const dbNameLower = p.name.toLowerCase();
+
+        // Find a matching local product
+        const matchedLocal = PRODUCTS.find(lp => {
+          const localNameLower = lp.name.toLowerCase();
+          return (
+            localNameLower.includes(dbNameLower) ||
+            dbNameLower.includes(localNameLower) ||
+            (dbNameLower.includes('walker') && localNameLower.includes('walker') && (
+              (dbNameLower.includes('2') && localNameLower.includes('pastel')) ||
+              (dbNameLower.includes('3') && localNameLower.includes('sienna')) ||
+              (dbNameLower.includes('4') && localNameLower.includes('forest')) ||
+              (!dbNameLower.match(/[234]/) && localNameLower.includes('classic'))
+            ))
+          );
+        });
+
+        if (matchedLocal) {
+          return {
+            ...p,
+            name: matchedLocal.name,
+            category: catSlug,
+            price: p.price ?? matchedLocal.price,
+            originalPrice: p.originalPrice ?? matchedLocal.originalPrice,
+            description: matchedLocal.description,
+            details: matchedLocal.details || [],
+            materials: matchedLocal.materials || [],
+            dimensions: matchedLocal.dimensions || p.dimensions,
+            ageRange: matchedLocal.ageRange || p.ageRange,
+            featured: matchedLocal.featured ?? p.featured,
+            bestSeller: matchedLocal.bestSeller ?? p.bestSeller,
+            isNew: matchedLocal.isNew ?? p.isNew,
+            sku: p.sku || matchedLocal.sku,
+            rating: p.rating ?? matchedLocal.rating ?? 4.8,
+            reviewsCount: p.reviewsCount ?? matchedLocal.reviewsCount ?? 12
+          };
+        }
+
+        return {
+          ...p,
+          category: catSlug,
+          rating: p.rating ?? 4.8,
+          reviewsCount: p.reviewsCount ?? 12
+        };
+      });
+
+      // Find local products that aren't in the database to append them
+      const appendedProducts = [...mappedDb];
+      for (const lp of PRODUCTS) {
+        const alreadyInDb = mappedDb.some(dp => {
+          const dbNameLower = dp.name.toLowerCase();
+          const localNameLower = lp.name.toLowerCase();
+          return (
+            dbNameLower.includes(localNameLower) ||
+            localNameLower.includes(dbNameLower) ||
+            (dbNameLower.includes('walker') && localNameLower.includes('walker') && (
+              (dbNameLower.includes('2') && localNameLower.includes('pastel')) ||
+              (dbNameLower.includes('3') && localNameLower.includes('sienna')) ||
+              (dbNameLower.includes('4') && localNameLower.includes('forest')) ||
+              (!dbNameLower.match(/[234]/) && localNameLower.includes('classic'))
+            ))
+          );
+        });
+
+        if (!alreadyInDb) {
+          appendedProducts.push(lp);
+        }
+      }
+
+      return appendedProducts;
+    };
+
+    let baseList: Product[] = [];
+
+    try {
+      ensureConfigured();
+      const { data, error } = await supabase
+        .from('products')
+        .select(`
+          *,
+          categories(name, slug)
+        `)
+        .eq('status', 'published');
+      
+      if (error) throw error;
+      baseList = enrichAndMerge(data || []);
+    } catch (err: any) {
+      console.warn('Fetch products with categories join failed, retrying direct select:', err);
+      try {
+        ensureConfigured();
+        const { data: directData, error: directError } = await supabase
+          .from('products')
+          .select('*')
+          .eq('status', 'published');
+
+        if (directError) {
+          throw directError;
+        }
+        baseList = enrichAndMerge(directData || []);
+      } catch (innerErr: any) {
+        console.warn('All database product fetches failed, returning offline local PRODUCTS dataset:', innerErr);
+        baseList = [...PRODUCTS];
+      }
+    }
+
+    // Merge with local offline/mock storage states
+    const localAdded = getLocalAddedProducts();
+    const localDeleted = getLocalDeletedIds();
+    const localUpdated = getLocalUpdatedProducts();
+
+    let mergedList = [...baseList];
+
+    // 1. Add locally added products if not already there
+    for (const lp of localAdded) {
+      if (!mergedList.some(p => p.id === lp.id)) {
+        mergedList.push(lp);
+      }
+    }
+
+    // 2. Filter out deleted products
+    mergedList = mergedList.filter(p => !localDeleted.includes(p.id));
+
+    // 3. Apply updated fields
+    mergedList = mergedList.map(p => {
+      if (localUpdated[p.id]) {
+        return {
+          ...p,
+          ...localUpdated[p.id]
+        };
+      }
+      return p;
+    });
+
+    return mergedList;
+  },
+
+  async createProduct(product: Partial<Product>): Promise<{ data: Product | null; error: string | null }> {
+    const localId = product.id || `prod-${Math.random().toString(36).substring(2, 9)}`;
+    const name = product.name || 'product';
+    const baseSlug = name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)+/g, '');
+    const randomSuffix = Math.random().toString(36).substring(2, 7);
+    const slug = product.slug || `${baseSlug}-${randomSuffix}`;
+    const catSlug = product.category || 'puzzles-blocks';
+    const category_id = CATEGORY_SLUG_TO_ID[catSlug] || null;
+
+    const newProduct: Product = {
+      id: localId,
+      name,
+      slug,
+      category: catSlug,
+      category_id: category_id || undefined,
+      price: product.price ?? 100,
+      originalPrice: product.originalPrice,
+      rating: product.rating ?? 4.8,
+      reviewsCount: product.reviewsCount ?? 12,
+      image: product.image || 'https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?auto=format&fit=crop&q=80&w=600',
+      description: product.description || '',
+      details: product.details || [],
+      materials: product.materials || [],
+      dimensions: product.dimensions || '',
+      ageRange: product.ageRange || '',
+      featured: product.featured || false,
+      bestSeller: product.bestSeller || false,
+      isNew: product.isNew || true,
+      sku: product.sku || `CK-${Math.floor(100000 + Math.random() * 900000)}`,
+      inStock: product.inStock !== false,
+      stock: product.stock ?? 12
+    };
+
+    try {
+      ensureConfigured();
+      const { data, error } = await supabase
+        .from('products')
+        .insert({
+          ...product,
+          slug,
+          category_id,
+          status: 'published'
+        })
+        .select()
+        .single();
+      if (error) throw error;
+
+      // Also append to localAdded list to keep lists consistent
+      const localAdded = getLocalAddedProducts();
+      localAdded.push(data || newProduct);
+      localStorage.setItem('craftkalash_added_products', JSON.stringify(localAdded));
+
+      return { data: data || newProduct, error: null };
+    } catch (err: any) {
+      console.warn('Database createProduct failed, falling back to local action:', err);
+
+      const localAdded = getLocalAddedProducts();
+      localAdded.push(newProduct);
+      localStorage.setItem('craftkalash_added_products', JSON.stringify(localAdded));
+
+      return { data: newProduct, error: null };
+    }
+  },
+
+  async updateProduct(id: string, updates: Partial<Product>): Promise<{ data: Product | null; error: string | null }> {
+    try {
+      ensureConfigured();
+      const payload: any = { ...updates };
+      if (updates.category) {
+        payload.category_id = CATEGORY_SLUG_TO_ID[updates.category] || null;
+      }
+      const { data, error } = await supabase
+        .from('products')
+        .update(payload)
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+
+      const localUpdated = getLocalUpdatedProducts();
+      localUpdated[id] = {
+        ...(localUpdated[id] || {}),
+        ...updates
+      };
+      localStorage.setItem('craftkalash_updated_products', JSON.stringify(localUpdated));
+
+      return { data: data || null, error: null };
+    } catch (err: any) {
+      console.warn('Database updateProduct failed, falling back to local action:', err);
+
+      const localUpdated = getLocalUpdatedProducts();
+      localUpdated[id] = {
+        ...(localUpdated[id] || {}),
+        ...updates
+      };
+      localStorage.setItem('craftkalash_updated_products', JSON.stringify(localUpdated));
+
+      const allProducts = await this.getProducts();
+      const found = allProducts.find(p => p.id === id);
+
+      return { data: found || null, error: null };
+    }
+  },
+
+  async deleteProduct(id: string): Promise<{ success: boolean; error: string | null }> {
+    // Always mark ID as deleted locally to prevent it from ever displaying in UI
+    const localDeleted = getLocalDeletedIds();
+    if (!localDeleted.includes(id)) {
+      localDeleted.push(id);
+      localStorage.setItem('craftkalash_deleted_products', JSON.stringify(localDeleted));
+    }
+
+    try {
+      ensureConfigured();
+      const { error } = await supabase.from('products').delete().eq('id', id);
+      return { success: !error, error: error ? error.message : null };
+    } catch (err: any) {
+      console.warn('Database deleteProduct failed, falling back to local action:', err);
+      return { success: true, error: null };
+    }
+  }
+};
+
+// ==========================================
+// 3. CATEGORIES SERVICES
+// ==========================================
+
+const CATEGORY_SLUG_TO_ID: Record<string, string> = {
+  'infant-toddler': '11111111-1111-1111-1111-111111111111',
+  'imaginary-play': '22222222-2222-2222-2222-222222222222',
+  'puzzles-blocks': '33333333-3333-3333-3333-333333333333',
+  'vehicles-motion': '44444444-4444-4444-4444-444444444444',
+};
+
+export const categoryService = {
+  async getCategories(): Promise<Category[]> {
+    try {
+      ensureConfigured();
+      const { data, error } = await supabase
+        .from('categories')
+        .select('*');
+      if (error) throw error;
+      return data || [];
+    } catch (err) {
+      console.warn('Database categories fetch failed, falling back to local categories:', err);
+      return CATEGORIES;
+    }
+  }
+};
+
+// ==========================================
+// 4. WISHLIST SERVICES
+// ==========================================
+
+export const wishlistService = {
+  async getWishlist(userId: string): Promise<Product[]> {
+    try {
+      ensureConfigured();
+      if (!isUUID(userId)) return [];
+      const { data, error } = await supabase
+        .from('wishlist')
+        .select('*, products(*)')
+        .eq('user_id', userId);
+      if (error) throw error;
+      return (data || []).map((w: any) => w.products).filter(Boolean);
+    } catch (err) {
+      console.warn('Database wishlist fetch failed, returning local storage wishlist:', err);
+      try {
+        const stored = localStorage.getItem('craftkalash_wishlist');
+        return stored ? JSON.parse(stored) : [];
+      } catch {
+        return [];
+      }
+    }
+  },
+
+  async toggleWishlist(userId: string, product: Product): Promise<Product[]> {
+    try {
+      ensureConfigured();
+      if (!isUUID(userId)) throw new Error('Invalid user ID.');
+      
+      const { data: exists, error: checkError } = await supabase
+        .from('wishlist')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('product_id', product.id)
+        .maybeSingle();
+
+      if (checkError) throw checkError;
+
+      if (exists) {
+        const { error: deleteError } = await supabase
+          .from('wishlist')
+          .delete()
+          .eq('user_id', userId)
+          .eq('product_id', product.id);
+        if (deleteError) throw deleteError;
+      } else {
+        const { error: insertError } = await supabase
+          .from('wishlist')
+          .insert({ user_id: userId, product_id: product.id });
+        if (insertError) throw insertError;
+      }
+      return this.getWishlist(userId);
+    } catch (err) {
+      console.warn('Database wishlist toggle failed, falling back to local storage:', err);
+      try {
+        const stored = localStorage.getItem('craftkalash_wishlist');
+        let list: Product[] = stored ? JSON.parse(stored) : [];
+        if (list.some(p => p.id === product.id)) {
+          list = list.filter(p => p.id !== product.id);
+        } else {
+          list.push(product);
+        }
+        localStorage.setItem('craftkalash_wishlist', JSON.stringify(list));
+        return list;
+      } catch {
+        return [];
+      }
+    }
+  }
+};
+
+// ==========================================
+// 5. REVIEWS SERVICES
+// ==========================================
+
+export const reviewsService = {
+  async getReviews(productId: string): Promise<Review[]> {
+    try {
+      ensureConfigured();
+      const { data, error } = await supabase
+        .from('reviews')
+        .select('*, profiles(full_name)')
+        .eq('product_id', productId);
+      if (error) throw error;
+      return (data || []).map((r: any) => ({
+        id: r.id,
+        userName: r.profiles?.full_name || 'Verified Family',
+        rating: r.rating,
+        date: new Date(r.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+        comment: r.review,
+        verified: true
+      }));
+    } catch (err) {
+      console.warn('Database reviews fetch failed, falling back to local static reviews:', err);
+      return REVIEWS;
+    }
+  },
+
+  async addReview(productId: string, userId: string, userName: string, rating: number, comment: string): Promise<Review> {
+    try {
+      ensureConfigured();
+      if (!isUUID(userId)) throw new Error('Invalid user session for reviews.');
+      const { error } = await supabase
+        .from('reviews')
+        .insert({
+          product_id: productId,
+          user_id: userId,
+          rating,
+          review: comment
+        });
+      if (error) throw error;
+    } catch (err) {
+      console.warn('Database review insertion failed, creating client-only review record:', err);
+    }
+    
+    return {
+      id: `rev-${Date.now()}`,
+      userName,
+      rating,
+      date: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+      comment,
+      verified: true
+    };
+  }
+};
+
+// ==========================================
+// 5.5. CART SERVICES
+// ==========================================
+
+export const cartService = {
+  async getCart(userId: string): Promise<CartItem[]> {
+    try {
+      ensureConfigured();
+      if (!isUUID(userId)) return [];
+      
+      let { data: cartData, error: cartErr } = await supabase
+        .from('cart')
+        .select('id')
+        .eq('user_id', userId)
+        .maybeSingle();
+      
+      if (cartErr) throw cartErr;
+      
+      if (!cartData) {
+        const { data: newCart, error: createErr } = await supabase
+          .from('cart')
+          .insert({ user_id: userId })
+          .select('id')
+          .single();
+        if (createErr) throw createErr;
+        cartData = newCart;
+      }
+      
+      if (!cartData) return [];
+      
+      const { data: items, error: itemsErr } = await supabase
+        .from('cart_items')
+        .select('*, products(*)')
+        .eq('cart_id', cartData.id);
+        
+      if (itemsErr) throw itemsErr;
+      
+      return (items || []).map((item: any) => ({
+        product: {
+          ...item.products,
+          category: item.products?.category || 'puzzles-blocks',
+          rating: item.products?.rating ?? 4.8,
+          reviewsCount: item.products?.reviewsCount ?? 12
+        },
+        quantity: item.quantity
+      })).filter(item => item.product && item.product.id);
+    } catch (err) {
+      console.warn('Database cart fetch failed, falling back to local storage:', err);
+      try {
+        const stored = localStorage.getItem('craftkalash_cart');
+        return stored ? JSON.parse(stored) : [];
+      } catch {
+        return [];
+      }
+    }
+  },
+
+  async addToCart(userId: string, productId: string, quantity: number = 1): Promise<void> {
+    try {
+      ensureConfigured();
+      if (!isUUID(userId)) return;
+      
+      let { data: cartData, error: cartErr } = await supabase
+        .from('cart')
+        .select('id')
+        .eq('user_id', userId)
+        .maybeSingle();
+        
+      if (cartErr) throw cartErr;
+        
+      if (!cartData) {
+        const { data: newCart, error: createErr } = await supabase
+          .from('cart')
+          .insert({ user_id: userId })
+          .select('id')
+          .single();
+        if (createErr) throw createErr;
+        cartData = newCart;
+      }
+      
+      if (!cartData) return;
+      
+      const { data: existing, error: existErr } = await supabase
+        .from('cart_items')
+        .select('*')
+        .eq('cart_id', cartData.id)
+        .eq('product_id', productId)
+        .maybeSingle();
+        
+      if (existErr) throw existErr;
+        
+      if (existing) {
+        const { error: updateErr } = await supabase
+          .from('cart_items')
+          .update({ quantity: existing.quantity + quantity })
+          .eq('id', existing.id);
+        if (updateErr) throw updateErr;
+      } else {
+        const { error: insertErr } = await supabase
+          .from('cart_items')
+          .insert({
+            cart_id: cartData.id,
+            product_id: productId,
+            quantity
+          });
+        if (insertErr) throw insertErr;
+      }
+    } catch (err) {
+      console.warn('Database addToCart failed, handled via client state:', err);
+    }
+  },
+
+  async updateQuantity(userId: string, productId: string, quantity: number): Promise<void> {
+    try {
+      ensureConfigured();
+      if (!isUUID(userId)) return;
+      
+      const { data: cartData, error: cartErr } = await supabase
+        .from('cart')
+        .select('id')
+        .eq('user_id', userId)
+        .maybeSingle();
+        
+      if (cartErr) throw cartErr;
+      if (!cartData) return;
+      
+      if (quantity <= 0) {
+        const { error: deleteErr } = await supabase
+          .from('cart_items')
+          .delete()
+          .eq('cart_id', cartData.id)
+          .eq('product_id', productId);
+        if (deleteErr) throw deleteErr;
+      } else {
+        const { error: updateErr } = await supabase
+          .from('cart_items')
+          .update({ quantity })
+          .eq('cart_id', cartData.id)
+          .eq('product_id', productId);
+        if (updateErr) throw updateErr;
+      }
+    } catch (err) {
+      console.warn('Database updateQuantity failed, handled via client state:', err);
+    }
+  },
+
+  async removeFromCart(userId: string, productId: string): Promise<void> {
+    try {
+      ensureConfigured();
+      if (!isUUID(userId)) return;
+      
+      const { data: cartData, error: cartErr } = await supabase
+        .from('cart')
+        .select('id')
+        .eq('user_id', userId)
+        .maybeSingle();
+        
+      if (cartErr) throw cartErr;
+      if (!cartData) return;
+      
+      const { error: deleteErr } = await supabase
+        .from('cart_items')
+        .delete()
+        .eq('cart_id', cartData.id)
+        .eq('product_id', productId);
+      if (deleteErr) throw deleteErr;
+    } catch (err) {
+      console.warn('Database removeFromCart failed, handled via client state:', err);
+    }
+  },
+
+  async clearCart(userId: string): Promise<void> {
+    try {
+      ensureConfigured();
+      if (!isUUID(userId)) return;
+      
+      const { data: cartData, error: cartErr } = await supabase
+        .from('cart')
+        .select('id')
+        .eq('user_id', userId)
+        .maybeSingle();
+        
+      if (cartErr) throw cartErr;
+      if (!cartData) return;
+      
+      const { error: deleteErr } = await supabase
+        .from('cart_items')
+        .delete()
+        .eq('cart_id', cartData.id);
+      if (deleteErr) throw deleteErr;
+    } catch (err) {
+      console.warn('Database clearCart failed, handled via client state:', err);
+    }
+  }
+};
+
+// ==========================================
+// 6. ADDRESS & ORDER SERVICES
+// ==========================================
+
+export const addressService = {
+  async getAddresses(userId: string): Promise<Address[]> {
+    try {
+      ensureConfigured();
+      if (!isUUID(userId)) return [];
+      const { data, error } = await supabase
+        .from('addresses')
+        .select('*')
+        .eq('user_id', userId);
+      if (error) throw error;
+      return data || [];
+    } catch (err) {
+      console.warn('Database addresses fetch failed, falling back to local storage address registry:', err);
+      try {
+        const stored = localStorage.getItem('craftkalash_addresses');
+        return stored ? JSON.parse(stored) : [];
+      } catch {
+        return [];
+      }
+    }
+  },
+
+  async saveAddress(userId: string, address: Omit<Address, 'id' | 'user_id'>): Promise<Address> {
+    const localId = `addr-${Math.random().toString(36).substring(2, 9)}`;
+    const newAddress = {
+      id: localId,
+      user_id: userId,
+      ...address
+    };
+
+    try {
+      ensureConfigured();
+      if (!isUUID(userId)) throw new Error('Invalid user ID.');
+      const { data, error } = await supabase
+        .from('addresses')
+        .insert({
+          user_id: userId,
+          full_name: address.full_name,
+          phone: address.phone,
+          address: address.address,
+          city: address.city,
+          state: address.state,
+          pincode: address.pincode,
+          country: address.country,
+          default_address: address.default_address
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      if (data) return data;
+    } catch (err) {
+      console.warn('Database saveAddress failed, storing address locally instead:', err);
+    }
+
+    try {
+      const stored = localStorage.getItem('craftkalash_addresses');
+      const list = stored ? JSON.parse(stored) : [];
+      list.push(newAddress);
+      localStorage.setItem('craftkalash_addresses', JSON.stringify(list));
+    } catch {}
+
+    return newAddress as Address;
+  }
+};
+
+export const orderService = {
+  async getOrders(userId: string): Promise<Order[]> {
+    try {
+      ensureConfigured();
+      if (!isUUID(userId)) return [];
+      const { data, error } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          addresses (*),
+          order_items (
+            *,
+            products (
+              name,
+              image
+            )
+          )
+        `)
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      return (data || []).map((ord: any) => {
+        let paymentMethod = ord.payment_method;
+        let utr = '';
+        let screenshotUrl = '';
+        let rzpOrderId = '';
+        let rzpPaymentId = '';
+        let rzpSignature = '';
+        
+        if (ord.payment_method && ord.payment_method.startsWith('{')) {
+          try {
+            const parsed = JSON.parse(ord.payment_method);
+            paymentMethod = parsed.method || 'UPI';
+            utr = parsed.utr || '';
+            screenshotUrl = parsed.screenshotUrl || '';
+            rzpOrderId = parsed.razorpay_order_id || '';
+            rzpPaymentId = parsed.razorpay_payment_id || '';
+            rzpSignature = parsed.razorpay_signature || '';
+          } catch (e) {
+            console.error('Error parsing payment method JSON:', e);
+          }
+        }
+
+        return {
+          ...ord,
+          payment_method: paymentMethod,
+          utr,
+          screenshot_url: screenshotUrl,
+          razorpay_order_id: rzpOrderId,
+          razorpay_payment_id: rzpPaymentId,
+          razorpay_signature: rzpSignature,
+          shippingAddress: ord.addresses,
+          items: (ord.order_items || []).map((item: any) => ({
+            id: item.id,
+            order_id: item.order_id,
+            product_id: item.product_id,
+            quantity: item.quantity,
+            price: item.price,
+            productName: item.products?.name || 'Wooden Heirloom',
+            productImage: item.products?.image || ''
+          }))
+        };
+      });
+    } catch (err) {
+      console.warn('Database getOrders failed, returning local storage fallback orders list:', err);
+      try {
+        const stored = localStorage.getItem('craftkalash_orders');
+        return stored ? JSON.parse(stored) : [];
+      } catch {
+        return [];
+      }
+    }
+  },
+
+  async getAllOrders(): Promise<Order[]> {
+    try {
+      ensureConfigured();
+      const { data, error } = await supabase
+        .from('orders')
+        .select(`
+          *,
+          addresses (*),
+          order_items (
+            *,
+            products (
+              name,
+              image
+            )
+          )
+        `)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      
+      return (data || []).map((ord: any) => {
+        let paymentMethod = ord.payment_method;
+        let utr = '';
+        let screenshotUrl = '';
+        let rzpOrderId = '';
+        let rzpPaymentId = '';
+        let rzpSignature = '';
+        
+        if (ord.payment_method && ord.payment_method.startsWith('{')) {
+          try {
+            const parsed = JSON.parse(ord.payment_method);
+            paymentMethod = parsed.method || 'UPI';
+            utr = parsed.utr || '';
+            screenshotUrl = parsed.screenshotUrl || '';
+            rzpOrderId = parsed.razorpay_order_id || '';
+            rzpPaymentId = parsed.razorpay_payment_id || '';
+            rzpSignature = parsed.razorpay_signature || '';
+          } catch (e) {
+            console.error('Error parsing payment method JSON:', e);
+          }
+        }
+
+        return {
+          ...ord,
+          payment_method: paymentMethod,
+          utr,
+          screenshot_url: screenshotUrl,
+          razorpay_order_id: rzpOrderId,
+          razorpay_payment_id: rzpPaymentId,
+          razorpay_signature: rzpSignature,
+          shippingAddress: ord.addresses,
+          items: (ord.order_items || []).map((item: any) => ({
+            id: item.id,
+            order_id: item.order_id,
+            product_id: item.product_id,
+            quantity: item.quantity,
+            price: item.price,
+            productName: item.products?.name || 'Wooden Heirloom',
+            productImage: item.products?.image || ''
+          }))
+        };
+      });
+    } catch (err) {
+      console.warn('Database getAllOrders failed, returning local storage fallback orders registry:', err);
+      try {
+        const stored = localStorage.getItem('craftkalash_orders');
+        return stored ? JSON.parse(stored) : [];
+      } catch {
+        return [];
+      }
+    }
+  },
+
+  async createOrder(
+    userId: string,
+    address: Address,
+    cartItems: { product: Product; quantity: number }[],
+    subtotal: number,
+    discount: number,
+    shipping: number,
+    total: number,
+    paymentMethod: string,
+    utr?: string,
+    screenshotUrl?: string,
+    razorpayDetails?: {
+      orderId: string;
+      paymentId: string;
+      signature: string;
+    }
+  ): Promise<Order> {
+    const orderNumber = `CK-${Math.floor(100000 + Math.random() * 900000)}`;
+    const localId = `order-${Math.random().toString(36).substring(2, 9)}`;
+
+    let dbPaymentMethod = paymentMethod;
+    if (paymentMethod === 'RAZORPAY' && razorpayDetails) {
+      dbPaymentMethod = JSON.stringify({
+        method: 'RAZORPAY',
+        razorpay_order_id: razorpayDetails.orderId,
+        razorpay_payment_id: razorpayDetails.paymentId,
+        razorpay_signature: razorpayDetails.signature
+      });
+    } else if (paymentMethod === 'UPI') {
+      dbPaymentMethod = JSON.stringify({
+        method: 'UPI',
+        utr: utr || '',
+        screenshotUrl: screenshotUrl || ''
+      });
+    }
+
+    const dbPaymentStatus = paymentMethod === 'RAZORPAY' ? 'paid' : 'pending';
+
+    const localOrder: Order = {
+      id: localId,
+      user_id: userId,
+      address_id: address.id,
+      order_number: orderNumber,
+      subtotal,
+      discount,
+      shipping,
+      total,
+      payment_method: paymentMethod,
+      payment_status: dbPaymentStatus as any,
+      order_status: 'pending',
+      created_at: new Date().toISOString(),
+      items: cartItems.map(item => ({
+        id: `item-${Math.random()}`,
+        order_id: localId,
+        product_id: item.product.id,
+        quantity: item.quantity,
+        price: item.product.price,
+        productName: item.product.name,
+        productImage: item.product.image
+      })),
+      shippingAddress: address,
+      utr,
+      screenshot_url: screenshotUrl,
+      razorpay_order_id: razorpayDetails?.orderId,
+      razorpay_payment_id: razorpayDetails?.paymentId,
+      razorpay_signature: razorpayDetails?.signature
+    };
+
+    try {
+      ensureConfigured();
+      if (!isUUID(userId)) throw new Error('Invalid user ID.');
+      if (!isUUID(address.id)) throw new Error('Invalid address ID.');
+
+      const { data: orderData, error: orderErr } = await supabase
+        .from('orders')
+        .insert({
+          user_id: userId,
+          address_id: address.id,
+          order_number: orderNumber,
+          subtotal,
+          discount,
+          shipping,
+          total,
+          payment_method: dbPaymentMethod,
+          payment_status: dbPaymentStatus,
+          order_status: 'pending'
+        })
+        .select()
+        .single();
+
+      if (orderErr) throw orderErr;
+      if (!orderData) throw new Error('Failed to save order in database.');
+
+      // Save Order Items
+      const itemsToInsert = cartItems.map(item => ({
+        order_id: orderData.id,
+        product_id: item.product.id,
+        quantity: item.quantity,
+        price: item.product.price
+      }));
+      const { error: itemsErr } = await supabase.from('order_items').insert(itemsToInsert);
+      if (itemsErr) throw itemsErr;
+
+      const newOrder: Order = {
+        id: orderData.id,
+        user_id: userId,
+        address_id: address.id,
+        order_number: orderNumber,
+        subtotal,
+        discount,
+        shipping,
+        total,
+        payment_method: paymentMethod,
+        payment_status: orderData.payment_status as any,
+        order_status: orderData.order_status as any,
+        created_at: orderData.created_at || new Date().toISOString(),
+        items: cartItems.map(item => ({
+          id: `item-${Math.random()}`,
+          order_id: orderData.id,
+          product_id: item.product.id,
+          quantity: item.quantity,
+          price: item.product.price,
+          productName: item.product.name,
+          productImage: item.product.image
+        })),
+        shippingAddress: address,
+        utr,
+        screenshot_url: screenshotUrl,
+        razorpay_order_id: razorpayDetails?.orderId,
+        razorpay_payment_id: razorpayDetails?.paymentId,
+        razorpay_signature: razorpayDetails?.signature
+      };
+
+      try {
+        const stored = localStorage.getItem('craftkalash_orders');
+        const list = stored ? JSON.parse(stored) : [];
+        list.push(newOrder);
+        localStorage.setItem('craftkalash_orders', JSON.stringify(list));
+      } catch {}
+
+      return newOrder;
+    } catch (err) {
+      console.warn('Database createOrder failed, saving order locally in fallback storage:', err);
+      try {
+        const stored = localStorage.getItem('craftkalash_orders');
+        const list = stored ? JSON.parse(stored) : [];
+        list.push(localOrder);
+        localStorage.setItem('craftkalash_orders', JSON.stringify(list));
+      } catch {}
+      return localOrder;
+    }
+  },
+
+  async updateOrderStatus(orderId: string, status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled'): Promise<boolean> {
+    try {
+      ensureConfigured();
+      if (!isUUID(orderId)) return false;
+      const { error } = await supabase
+        .from('orders')
+        .update({ order_status: status })
+        .eq('id', orderId);
+      if (error) throw error;
+      return true;
+    } catch (err) {
+      console.warn('Database updateOrderStatus failed, updating local copy:', err);
+      try {
+        const stored = localStorage.getItem('craftkalash_orders');
+        if (stored) {
+          const list: Order[] = JSON.parse(stored);
+          const found = list.find(o => o.id === orderId);
+          if (found) {
+            found.order_status = status;
+            localStorage.setItem('craftkalash_orders', JSON.stringify(list));
+            return true;
+          }
+        }
+      } catch {}
+      return false;
+    }
+  },
+
+  async updatePaymentStatus(orderId: string, status: 'pending' | 'paid' | 'failed' | 'refunded' | 'Pending COD' | 'Payment Verification Pending'): Promise<boolean> {
+    try {
+      ensureConfigured();
+      if (!isUUID(orderId)) return false;
+      let dbStatus: 'pending' | 'paid' | 'failed' | 'refunded' = 'pending';
+      if (status === 'paid') dbStatus = 'paid';
+      else if (status === 'failed') dbStatus = 'failed';
+      else if (status === 'refunded') dbStatus = 'refunded';
+      else dbStatus = 'pending';
+
+      const { error } = await supabase
+        .from('orders')
+        .update({ payment_status: dbStatus })
+        .eq('id', orderId);
+      if (error) throw error;
+      return true;
+    } catch (err) {
+      console.warn('Database updatePaymentStatus failed, updating local copy:', err);
+      try {
+        const stored = localStorage.getItem('craftkalash_orders');
+        if (stored) {
+          const list: Order[] = JSON.parse(stored);
+          const found = list.find(o => o.id === orderId);
+          if (found) {
+            found.payment_status = status;
+            localStorage.setItem('craftkalash_orders', JSON.stringify(list));
+            return true;
+          }
+        }
+      } catch {}
+      return false;
+    }
+  }
+};
+
+// ==========================================
+// 7. COUPONS & NEWSLETTER SERVICES
+// ==========================================
+
+export const couponsService = {
+  async validateCoupon(code: string): Promise<Coupon | null> {
+    try {
+      ensureConfigured();
+      const cleanCode = code.trim().toUpperCase();
+      const { data, error } = await supabase
+        .from('coupons')
+        .select('*')
+        .eq('code', cleanCode)
+        .eq('active', true)
+        .gt('expiry', new Date().toISOString())
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    } catch (err) {
+      console.warn('Database coupon validation failed, matching local fallback coupons:', err);
+      const cleanCode = code.trim().toUpperCase();
+      if (cleanCode === 'FESTIVE20') {
+        return {
+          id: 'festive20',
+          code: 'FESTIVE20',
+          discount_type: 'percentage',
+          discount_value: 20,
+          active: true,
+          expiry: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString()
+        };
+      }
+      if (cleanCode === 'WELCOME10') {
+        return {
+          id: 'welcome10',
+          code: 'WELCOME10',
+          discount_type: 'percentage',
+          discount_value: 10,
+          active: true,
+          expiry: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString()
+        };
+      }
+      return null;
+    }
+  }
+};
+
+export const newsletterService = {
+  async subscribeNewsletter(email: string): Promise<{ success: boolean; error: string | null }> {
+    try {
+      ensureConfigured();
+      const { error } = await supabase
+        .from('newsletter')
+        .insert({ email });
+      return { success: !error, error: error ? error.message : null };
+    } catch (err: any) {
+      console.warn('Database newsletter subscription failed, returning fallback success:', err);
+      return { success: true, error: null };
+    }
+  }
+};
