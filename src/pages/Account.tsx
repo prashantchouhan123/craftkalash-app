@@ -356,7 +356,7 @@ export default function Account() {
                             Placed on {new Date(order.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
                           </strong>
                           <span className="block text-[10px] text-brand-text-secondary">
-                            Curated items subtotal: <strong>${order.total}</strong>
+                            Curated items subtotal: <strong>₹{order.total}</strong>
                           </span>
                         </div>
                         <div className="flex gap-2">
@@ -430,7 +430,7 @@ export default function Account() {
                               </div>
                               <div>
                                 <span className="block text-[9px] text-gray-400 uppercase font-bold">Total Amount</span>
-                                <span className="font-black text-brand-primary">${order.total}</span>
+                                <span className="font-black text-brand-primary">₹{order.total}</span>
                               </div>
                             </div>
 
@@ -453,9 +453,9 @@ export default function Account() {
                                   />
                                   <div className="flex-1 min-w-0">
                                     <h4 className="font-bold text-brand-text-primary truncate">{item.productName || matchProduct?.name}</h4>
-                                    <span className="text-[10px] text-gray-400">Qty: {item.quantity} • Unit Price: ${item.price}</span>
+                                    <span className="text-[10px] text-gray-400">Qty: {item.quantity} • Unit Price: ₹{item.price}</span>
                                   </div>
-                                  <span className="font-bold text-brand-primary">${item.price * item.quantity}</span>
+                                  <span className="font-bold text-brand-primary">₹{item.price * item.quantity}</span>
                                 </div>
                               );
                             })}
@@ -585,7 +585,7 @@ export default function Account() {
                           <div className="space-y-0.5">
                             <h4 className="font-heading font-extrabold text-brand-text-primary truncate">{item.name}</h4>
                             <span className="text-[10px] text-brand-secondary font-bold uppercase block">{item.category}</span>
-                            <span className="font-extrabold text-brand-primary block">${item.price}</span>
+                            <span className="font-extrabold text-brand-primary block">₹{item.price}</span>
                           </div>
 
                           <div className="flex gap-2.5 pt-2">

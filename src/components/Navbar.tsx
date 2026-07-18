@@ -75,7 +75,7 @@ export default function Navbar() {
       {/* Upper Promo Banner */}
       <div className="bg-brand-primary text-white text-[11px] font-semibold tracking-widest text-center py-2 px-4 uppercase flex items-center justify-center gap-1.5 z-50 relative">
         <Award className="w-3.5 h-3.5 text-brand-accent animate-pulse" />
-        Free worldwide shipping on orders over $75 • Heirloom Handcrafted Wooden Art
+        Free shipping on orders over ₹1500 • Heirloom Handcrafted Wooden Art
       </div>
 
       <header

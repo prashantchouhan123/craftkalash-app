@@ -66,13 +66,13 @@ export default function CartDrawer() {
   }, [profile]);
 
   const subtotal = getCartTotal();
-  const shippingThreshold = 75;
+  const shippingThreshold = 1500;
   
   // Calculate coupon discount
   const discountAmount = appliedCoupon ? (subtotal * discountPercent) / 100 : 0;
   
   const isShippingFree = subtotal >= shippingThreshold;
-  const shippingCost = isShippingFree ? 0 : 9.99;
+  const shippingCost = isShippingFree ? 0 : 99;
   const total = subtotal - discountAmount + shippingCost;
   const itemsCount = getCartItemsCount();
 
@@ -200,7 +200,7 @@ export default function CartDrawer() {
                     <span>🎉 You have unlocked <strong>Free Standard Shipping!</strong></span>
                   ) : (
                     <span>
-                      Add <strong>${(shippingThreshold - subtotal).toFixed(2)}</strong> more for <strong>Free Shipping!</strong>
+                      Add <strong>₹{(shippingThreshold - subtotal).toFixed(2)}</strong> more for <strong>Free Shipping!</strong>
                     </span>
                   )}
                 </div>
@@ -271,7 +271,7 @@ export default function CartDrawer() {
                             {/* Price & Delete */}
                             <div className="flex items-center gap-2">
                               <span className="text-xs font-extrabold text-brand-primary">
-                                ${(item.product.price * item.quantity).toFixed(2)}
+                                ₹{(item.product.price * item.quantity).toFixed(2)}
                               </span>
                               <button
                                 onClick={() => removeFromCart(item.product.id)}
@@ -323,21 +323,21 @@ export default function CartDrawer() {
                     <div className="space-y-2 text-xs text-brand-text-primary font-medium">
                       <div className="flex justify-between">
                         <span className="text-brand-text-secondary">Subtotal</span>
-                        <span>${subtotal.toFixed(2)}</span>
+                        <span>₹{subtotal.toFixed(2)}</span>
                       </div>
                       {appliedCoupon && (
                         <div className="flex justify-between text-emerald-700">
                           <span>Coupon discount</span>
-                          <span>-${discountAmount.toFixed(2)}</span>
+                          <span>-₹{discountAmount.toFixed(2)}</span>
                         </div>
                       )}
                       <div className="flex justify-between">
                         <span className="text-brand-text-secondary">Polishing & Shipping</span>
-                        <span>{isShippingFree ? 'FREE' : `$${shippingCost.toFixed(2)}`}</span>
+                        <span>{isShippingFree ? 'FREE' : `₹${shippingCost.toFixed(2)}`}</span>
                       </div>
                       <div className="flex justify-between text-sm font-black text-brand-text-primary pt-2 border-t border-brand-border/40">
                         <span>Total Sum</span>
-                        <span className="text-brand-primary">${total.toFixed(2)}</span>
+                        <span className="text-brand-primary">₹{total.toFixed(2)}</span>
                       </div>
                     </div>
 
@@ -505,7 +505,7 @@ export default function CartDrawer() {
                 <div className="pt-4 border-t border-brand-border/50 space-y-3.5">
                   <div className="flex justify-between items-center text-xs font-extrabold">
                     <span className="text-brand-text-secondary">Amount Payable:</span>
-                    <span className="text-brand-primary text-base">${total.toFixed(2)}</span>
+                    <span className="text-brand-primary text-base">₹{total.toFixed(2)}</span>
                   </div>
 
                   <button

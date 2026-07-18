@@ -146,11 +146,11 @@ export default function ProductCard({ product, onQuickView }: ProductCardProps) 
           <div className="flex flex-col">
             {product.originalPrice && (
               <span className="text-xs text-gray-400 line-through">
-                ${product.originalPrice}
+                ₹{product.originalPrice}
               </span>
             )}
             <span className="text-base sm:text-lg font-black text-brand-primary leading-none">
-              ${product.price}
+              ₹{product.price}
             </span>
           </div>
 

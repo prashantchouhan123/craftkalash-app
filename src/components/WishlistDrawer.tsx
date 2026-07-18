@@ -103,7 +103,7 @@ export default function WishlistDrawer() {
 
                       <div className="flex items-center justify-between mt-auto">
                         <span className="text-sm font-extrabold text-brand-primary">
-                          ${product.price}
+                          ₹{product.price}
                         </span>
 
                         <div className="flex items-center gap-2">

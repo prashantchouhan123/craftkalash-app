@@ -8,7 +8,7 @@ import {
   Edit, 
   ShoppingBag, 
   Layers, 
-  DollarSign, 
+  IndianRupee, 
   Wrench, 
   Info, 
   X, 
@@ -115,7 +115,7 @@ export default function Admin() {
   const [supportEmail, setSupportEmail] = useState('workshop@craftkalash.com');
   const [supportPhone, setSupportPhone] = useState('+91 291 243 0000');
   const [taxRate, setTaxRate] = useState('0');
-  const [freeShippingLimit, setFreeShippingLimit] = useState('75');
+  const [freeShippingLimit, setFreeShippingLimit] = useState('1500');
   const [enableCod, setEnableCod] = useState(true);
 
   // Banners
@@ -379,7 +379,7 @@ export default function Admin() {
               {/* Quick stats grid */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {[
-                  { title: 'Total Revenue', val: `$${totalSales.toFixed(2)}`, desc: 'Settled transactions', icon: DollarSign, color: 'text-brand-primary bg-brand-primary/5 border-brand-primary/10' },
+                  { title: 'Total Revenue', val: `₹${totalSales.toFixed(2)}`, desc: 'Settled transactions', icon: IndianRupee, color: 'text-brand-primary bg-brand-primary/5 border-brand-primary/10' },
                   { title: 'Workshop Orders', val: totalOrdersCount, desc: 'Across lifecycle', icon: ShoppingBag, color: 'text-brand-secondary bg-brand-secondary/5 border-brand-secondary/10' },
                   { title: 'Catalog Items', val: totalProductsCount, desc: 'Wooden masterpieces', icon: Layers, color: 'text-brand-accent bg-brand-accent/5 border-brand-accent/10' },
                   { title: 'Customer Base', val: customerList.length, desc: 'Registered families', icon: Users, color: 'text-emerald-700 bg-emerald-50 border-emerald-100' }
@@ -484,7 +484,7 @@ export default function Admin() {
                           <span className="font-bold text-brand-text-primary block truncate">{prod.name}</span>
                           <span className="text-[10px] text-brand-secondary font-bold uppercase">{prod.category}</span>
                         </div>
-                        <span className="font-extrabold text-brand-primary font-mono">${prod.price}</span>
+                        <span className="font-extrabold text-brand-primary font-mono">₹{prod.price}</span>
                       </div>
                     ))}
                   </div>
@@ -553,8 +553,8 @@ export default function Admin() {
                         <td className="py-3 px-6 font-mono text-gray-400">{p.sku || 'CK-554101'}</td>
                         <td className="py-3 px-6 font-semibold capitalize text-brand-text-secondary">{p.category.replace('-', ' ')}</td>
                         <td className="py-3 px-6 font-extrabold text-brand-primary text-xs">
-                          ${p.price.toFixed(2)}
-                          {p.originalPrice && <span className="block text-[9px] line-through text-gray-400 font-light font-sans">${p.originalPrice}</span>}
+                          ₹{p.price.toFixed(2)}
+                          {p.originalPrice && <span className="block text-[9px] line-through text-gray-400 font-light font-sans">₹{p.originalPrice}</span>}
                         </td>
                         <td className="py-3 px-6">
                           <span className={`px-2 py-0.5 rounded-full font-bold text-[9px] border ${p.inStock ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-rose-50 text-rose-700 border-rose-100'}`}>
@@ -707,7 +707,7 @@ export default function Admin() {
                                 <strong className="block text-brand-text-primary font-bold">{o.shippingAddress?.full_name}</strong>
                                 <span className="text-[10px] text-gray-400 font-mono tracking-wider">{o.shippingAddress?.city}, {o.shippingAddress?.state}</span>
                               </td>
-                              <td className="py-4 px-6 font-black text-brand-primary">${o.total}</td>
+                              <td className="py-4 px-6 font-black text-brand-primary">₹{o.total}</td>
                               <td className="py-4 px-6">
                                 <span className={`px-2.5 py-0.5 rounded-full font-black text-[9px] border ${statusColor}`}>
                                   {statusText}
@@ -751,12 +751,12 @@ export default function Admin() {
                                           {o.items?.map((item, idx) => (
                                             <div key={idx} className="py-1.5 flex justify-between text-brand-text-primary first:pt-0 last:pb-0">
                                               <span>{item.quantity}x <strong className="font-medium">{item.productName || `Product ID: ${item.product_id}`}</strong></span>
-                                              <span className="font-mono font-bold">${(item.price * item.quantity).toFixed(2)}</span>
+                                              <span className="font-mono font-bold">₹{(item.price * item.quantity).toFixed(2)}</span>
                                             </div>
                                           ))}
                                           <div className="pt-2 flex justify-between font-black text-brand-primary border-t border-brand-border/40">
                                             <span>Grand Total:</span>
-                                            <span>${o.total}</span>
+                                            <span>₹{o.total}</span>
                                           </div>
                                         </div>
                                       </div>
@@ -896,7 +896,7 @@ export default function Admin() {
                           <span>{cust.phone}</span>
                         </td>
                         <td className="py-4 px-6 font-bold">{cust.orders} orders</td>
-                        <td className="py-4 px-6 font-extrabold text-brand-primary">${cust.ltv.toFixed(2)}</td>
+                        <td className="py-4 px-6 font-extrabold text-brand-primary">₹{cust.ltv.toFixed(2)}</td>
                         <td className="py-4 px-6 text-right">
                           <button
                             onClick={() => {
@@ -944,7 +944,7 @@ export default function Admin() {
                       <tr key={c.id} className="hover:bg-brand-bg/10 transition-colors">
                         <td className="py-4 px-6 font-extrabold font-mono text-brand-primary">{c.code}</td>
                         <td className="py-4 px-6 font-bold">
-                          {c.discount_type === 'percentage' ? `${c.discount_value}% OFF` : `$${c.discount_value} OFF`}
+                          {c.discount_type === 'percentage' ? `${c.discount_value}% OFF` : `₹${c.discount_value} OFF`}
                         </td>
                         <td className="py-4 px-6 font-semibold text-gray-400 font-mono">{c.expiry}</td>
                         <td className="py-4 px-6 text-right">
@@ -1151,7 +1151,7 @@ export default function Admin() {
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="font-bold text-gray-400 text-[9px] uppercase">Free Shipping Threshold ($)</label>
+                      <label className="font-bold text-gray-400 text-[9px] uppercase">Free Shipping Threshold (₹)</label>
                       <input
                         type="number"
                         value={freeShippingLimit}
@@ -1487,7 +1487,7 @@ export default function Admin() {
                       className="w-full bg-brand-bg/40 border border-brand-border/60 rounded-xl px-3 py-2 font-bold"
                     >
                       <option value="percentage">Percentage OFF (%)</option>
-                      <option value="fixed">Fixed OFF ($)</option>
+                      <option value="fixed">Fixed OFF (₹)</option>
                     </select>
                   </div>
 

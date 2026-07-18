@@ -112,12 +112,12 @@ export default function Checkout() {
   const subtotal = getCartTotal();
   const getShippingCost = () => {
     if (shippingMethod === 'standard') {
-      return subtotal >= 75 ? 0 : 9.99;
+      return subtotal >= 1500 ? 0 : 99;
     }
     if (shippingMethod === 'express') {
-      return 19.99;
+      return 199;
     }
-    return 29.99; // Premium
+    return 299; // Premium
   };
 
   const shippingCost = getShippingCost();
@@ -224,7 +224,7 @@ export default function Checkout() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            amount: grandTotal * 83, // convert USD equivalent to INR (approx rate 83)
+            amount: grandTotal, // already in INR
             receipt: `receipt_${Math.floor(100000 + Math.random() * 900000)}`
           })
         });
@@ -583,21 +583,21 @@ export default function Checkout() {
                   {
                     id: 'standard',
                     title: 'Standard Workshop Courier',
-                    price: subtotal >= 75 ? 'FREE' : '$9.99',
+                    price: subtotal >= 1500 ? 'FREE' : '₹99',
                     desc: 'Delivery within 3 to 4 business days. Includes certified eco-friendly tissue padding.',
                     days: '3-4 days'
                   },
                   {
                     id: 'express',
                     title: 'Express Hand-Oiled Priority Delivery',
-                    price: '$19.99',
+                    price: '₹199',
                     desc: 'Shipped within 1 to 2 business days. Our builders execute an extra beeswax friction rub on timber logs immediately before boxing.',
                     days: '1-2 days'
                   },
                   {
                     id: 'premium',
                     title: 'Premium Pine Crate Curation',
-                    price: '$29.99',
+                    price: '₹299',
                     desc: 'Overnight delivery in a solid pine-wood mini drawer container. Includes a complementary 2oz cold-pressed beeswax sealant bar for ongoing parent care.',
                     days: 'Overnight'
                   }
@@ -719,7 +719,7 @@ export default function Checkout() {
                           <span className="bg-white px-2 py-1 rounded-md border border-brand-border/40">💼 Mobile Wallets</span>
                         </div>
                         <p className="text-[10px] text-gray-400 italic font-light pt-1">
-                          Amount in USD will be securely processed in Indian Rupees (INR) at an approximate conversion rate of ₹83 per $1.
+                          Amount will be securely processed in Indian Rupees (INR) via Razorpay.
                         </p>
                       </div>
                     </div>
@@ -862,7 +862,7 @@ export default function Checkout() {
                       onClick={handlePlaceOrder}
                       className="bg-brand-primary text-white text-xs font-bold py-3.5 px-8 rounded-xl flex items-center gap-1.5 hover:bg-brand-primary/95 shadow-md hover:scale-101 active:scale-98 transition-all cursor-pointer"
                     >
-                      Place Heirloom Order (${grandTotal.toFixed(2)})
+                      Place Heirloom Order (₹{grandTotal.toFixed(2)})
                       <ArrowRight className="w-4 h-4" />
                     </button>
                   </div>
@@ -888,10 +888,10 @@ export default function Checkout() {
                 <div className="flex-1 min-w-0">
                   <h4 className="font-bold text-brand-text-primary truncate">{item.product.name}</h4>
                   <span className="text-[10px] text-gray-400 block font-light">
-                    Qty: <strong>{item.quantity}</strong> • ${item.product.price.toFixed(2)} each
+                    Qty: <strong>{item.quantity}</strong> • ₹{item.product.price.toFixed(2)} each
                   </span>
                 </div>
-                <span className="font-extrabold text-brand-primary shrink-0">${(item.product.price * item.quantity).toFixed(2)}</span>
+                <span className="font-extrabold text-brand-primary shrink-0">₹{(item.product.price * item.quantity).toFixed(2)}</span>
               </div>
             ))}
           </div>
@@ -899,15 +899,15 @@ export default function Checkout() {
           <div className="border-t border-brand-border/40 pt-4 space-y-2.5 text-xs">
             <div className="flex justify-between text-brand-text-secondary">
               <span>Cart items subtotal</span>
-              <span>${subtotal.toFixed(2)}</span>
+              <span>₹{subtotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-brand-text-secondary">
               <span>Shipping cost ({shippingMethod})</span>
-              <span>{shippingCost === 0 ? 'FREE' : `$${shippingCost.toFixed(2)}`}</span>
+              <span>{shippingCost === 0 ? 'FREE' : `₹${shippingCost.toFixed(2)}`}</span>
             </div>
             <div className="flex justify-between font-black text-brand-text-primary text-sm pt-2 border-t border-brand-border/30">
               <span>Grand Total</span>
-              <span className="text-brand-primary text-base">${grandTotal.toFixed(2)}</span>
+              <span className="text-brand-primary text-base">₹{grandTotal.toFixed(2)}</span>
             </div>
           </div>
 

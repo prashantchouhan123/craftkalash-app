@@ -297,12 +297,12 @@ export default function QuickViewModal({ product, onClose, onSwitchProduct }: Qu
 
               {/* Pricing & Savings information */}
               <div className="flex items-baseline gap-3">
-                <span className="text-3xl font-black text-brand-primary">${product.price}</span>
+                <span className="text-3xl font-black text-brand-primary">₹{product.price}</span>
                 {product.originalPrice && (
                   <>
-                    <span className="text-base text-gray-400 line-through">${product.originalPrice}</span>
+                    <span className="text-base text-gray-400 line-through">₹{product.originalPrice}</span>
                     <span className="bg-brand-error/10 text-brand-error text-xs font-bold px-2.5 py-0.5 rounded-md border border-brand-error/20">
-                      Save ${(product.originalPrice - product.price).toFixed(0)} ({Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}% off)
+                      Save ₹{(product.originalPrice - product.price).toFixed(0)} ({Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}% off)
                     </span>
                   </>
                 )}
@@ -578,7 +578,7 @@ export default function QuickViewModal({ product, onClose, onSwitchProduct }: Qu
                       </div>
                       <div>
                         <span className="block text-[10px] font-bold text-brand-text-primary truncate">{rp.name}</span>
-                        <span className="block text-[10px] font-black text-brand-primary">${rp.price}</span>
+                        <span className="block text-[10px] font-black text-brand-primary">₹{rp.price}</span>
                       </div>
                     </div>
                   ))}
@@ -614,7 +614,7 @@ export default function QuickViewModal({ product, onClose, onSwitchProduct }: Qu
                   </div>
 
                   <span className="text-xs text-brand-text-secondary font-bold">
-                    Subtotal: <strong className="text-brand-primary text-sm font-black">${(product.price * quantity).toFixed(2)}</strong>
+                    Subtotal: <strong className="text-brand-primary text-sm font-black">₹{(product.price * quantity).toFixed(2)}</strong>
                   </span>
                 </div>
 

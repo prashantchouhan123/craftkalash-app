@@ -417,7 +417,7 @@ export function ShopProvider({ children }: { children: React.ReactNode }) {
     try {
       const savedAddress = await addressService.saveAddress(profile.id, addressData);
       const subtotal = getCartTotal();
-      const shipping = subtotal > 75 ? 0 : 9.99;
+      const shipping = subtotal > 1500 ? 0 : 99;
       const total = subtotal + shipping;
       
       const newOrder = await orderService.createOrder(

@@ -208,7 +208,7 @@ export default function Shop({ onQuickView }: ShopProps) {
             Price Cap
           </h3>
           <span className="text-xs font-bold text-brand-primary bg-brand-primary/10 px-2 py-0.5 rounded-md">
-            Up to ${maxPrice}
+            Up to ₹{maxPrice}
           </span>
         </div>
         <div className="relative pt-1">
@@ -222,10 +222,10 @@ export default function Shop({ onQuickView }: ShopProps) {
             className="w-full h-1.5 bg-brand-bg rounded-lg appearance-none cursor-pointer accent-brand-primary"
           />
           <div className="flex justify-between text-[10px] text-gray-400 font-bold mt-1">
-            <span>$20</span>
-            <span>${Math.round(maxLimit * 0.33)}</span>
-            <span>${Math.round(maxLimit * 0.66)}</span>
-            <span>${maxLimit}</span>
+            <span>₹20</span>
+            <span>₹{Math.round(maxLimit * 0.33)}</span>
+            <span>₹{Math.round(maxLimit * 0.66)}</span>
+            <span>₹{maxLimit}</span>
           </div>
         </div>
       </div>
@@ -451,7 +451,7 @@ export default function Shop({ onQuickView }: ShopProps) {
                           >
                             <img src={p.image} className="w-6 h-6 rounded-md object-cover border border-brand-border/40 shrink-0" referrerPolicy="no-referrer" />
                             <span className="flex-1 truncate group-hover:text-brand-primary transition-colors">{p.name}</span>
-                            <span className="text-[10px] text-brand-primary font-black">${p.price}</span>
+                            <span className="text-[10px] text-brand-primary font-black">₹{p.price}</span>
                           </button>
                         ))}
                       </div>

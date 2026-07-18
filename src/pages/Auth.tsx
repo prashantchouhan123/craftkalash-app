@@ -10,7 +10,9 @@ import {
   Sparkles, 
   CheckCircle, 
   ShieldCheck, 
-  Info 
+  Info,
+  Eye,
+  EyeOff
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -25,6 +27,7 @@ export default function Auth() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Success message after reset
@@ -203,13 +206,25 @@ export default function Auth() {
               <div className="relative">
                 <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   required
                   placeholder="Password (Min. 6 characters)"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-brand-bg/40 border border-brand-border/60 rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:border-brand-primary text-brand-text-primary font-bold placeholder-gray-400"
+                  className="w-full bg-brand-bg/40 border border-brand-border/60 rounded-xl pl-10 pr-10 py-3 focus:outline-none focus:border-brand-primary text-brand-text-primary font-bold placeholder-gray-400"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-brand-primary transition-colors focus:outline-none"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </button>
               </div>
             )}
 

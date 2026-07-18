@@ -41,9 +41,9 @@ export default function Cart({ onQuickView }: { onQuickView?: (product: any) => 
   const [appliedCoupon, setAppliedCoupon] = useState<string | null>(null);
 
   const subtotal = getCartTotal();
-  const shippingThreshold = 75;
+  const shippingThreshold = 1500;
   const isShippingFree = subtotal >= shippingThreshold;
-  const shippingCost = isShippingFree ? 0 : 9.99;
+  const shippingCost = isShippingFree ? 0 : 99;
   
   const discountAmount = appliedCoupon ? (subtotal * discountPercent) / 100 : 0;
   const grandTotal = subtotal - discountAmount + shippingCost;
@@ -234,10 +234,10 @@ export default function Cart({ onQuickView }: { onQuickView?: (product: any) => 
                       <span className="sm:hidden text-xs text-brand-text-secondary font-bold">Subtotal:</span>
                       <div className="space-y-0.5">
                         <span className="block text-sm font-black text-brand-primary">
-                          ${(item.product.price * item.quantity).toFixed(2)}
+                          ₹{(item.product.price * item.quantity).toFixed(2)}
                         </span>
                         <span className="hidden sm:block text-[10px] text-gray-400 font-light">
-                          ${item.product.price.toFixed(2)} each
+                          ₹{item.product.price.toFixed(2)} each
                         </span>
                       </div>
                     </div>
@@ -259,7 +259,7 @@ export default function Cart({ onQuickView }: { onQuickView?: (product: any) => 
                   <p className="text-[11px] text-brand-text-secondary font-light">
                     {isShippingFree 
                       ? 'Your order qualifies for free standard polishing & shipping.' 
-                      : `Add $${(shippingThreshold - subtotal).toFixed(2)} more of hand-crafted items for free shipping.`}
+                      : `Add ₹${(shippingThreshold - subtotal).toFixed(2)} more of hand-crafted items for free shipping.`}
                   </p>
                 </div>
               </div>
@@ -326,21 +326,21 @@ export default function Cart({ onQuickView }: { onQuickView?: (product: any) => 
               <div className="space-y-3.5 text-xs text-brand-text-primary">
                 <div className="flex justify-between font-medium">
                   <span className="text-brand-text-secondary">Subtotal</span>
-                  <span>${subtotal.toFixed(2)}</span>
+                  <span>₹{subtotal.toFixed(2)}</span>
                 </div>
                 {appliedCoupon && (
                   <div className="flex justify-between font-semibold text-emerald-700">
                     <span>Coupon discount</span>
-                    <span>-${discountAmount.toFixed(2)}</span>
+                    <span>-₹{discountAmount.toFixed(2)}</span>
                   </div>
                 )}
                 <div className="flex justify-between font-medium">
                   <span className="text-brand-text-secondary">Workshop Polishing & Shipping</span>
-                  <span>{isShippingFree ? 'FREE' : `$${shippingCost.toFixed(2)}`}</span>
+                  <span>{isShippingFree ? 'FREE' : `₹${shippingCost.toFixed(2)}`}</span>
                 </div>
                 <div className="flex justify-between text-sm font-black pt-3 border-t border-brand-border/40">
                   <span>Grand Total</span>
-                  <span className="text-brand-primary text-base">${grandTotal.toFixed(2)}</span>
+                  <span className="text-brand-primary text-base">₹{grandTotal.toFixed(2)}</span>
                 </div>
               </div>
 
