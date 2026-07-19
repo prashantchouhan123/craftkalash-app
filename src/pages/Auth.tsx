@@ -38,7 +38,7 @@ export default function Auth() {
     if (user) {
       navigate('/account');
     }
-  }, [user, navigate]);
+  }, [user?.id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

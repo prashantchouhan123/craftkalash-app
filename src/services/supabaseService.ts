@@ -934,6 +934,7 @@ export const orderService = {
         .from('orders')
         .select(`
           *,
+          profiles (*),
           addresses (*),
           order_items (
             *,
@@ -979,6 +980,7 @@ export const orderService = {
           razorpay_payment_id: rzpPaymentId,
           razorpay_signature: rzpSignature,
           shippingAddress: ord.addresses,
+          customer_profile: ord.profiles,
           items: (ord.order_items || []).map((item: any) => ({
             id: item.id,
             order_id: item.order_id,
@@ -1008,6 +1010,7 @@ export const orderService = {
         .from('orders')
         .select(`
           *,
+          profiles (*),
           addresses (*),
           order_items (
             *,
@@ -1052,6 +1055,7 @@ export const orderService = {
           razorpay_payment_id: rzpPaymentId,
           razorpay_signature: rzpSignature,
           shippingAddress: ord.addresses,
+          customer_profile: ord.profiles,
           items: (ord.order_items || []).map((item: any) => ({
             id: item.id,
             order_id: item.order_id,
@@ -1294,11 +1298,109 @@ export const orderService = {
 // 7. COUPONS & NEWSLETTER SERVICES
 // ==========================================
 
+const DEFAULT_COUPONS: Coupon[] = [
+  { id: 'c1', code: 'WELCOME10', discount_type: 'percentage', discount_value: 10, active: true, expiry: '2028-12-31T23:59:59.000Z' },
+  { id: 'c2', code: 'WOODLOVE20', discount_type: 'fixed', discount_value: 20, active: true, expiry: '2028-12-31T23:59:59.000Z' },
+  { id: 'c3', code: 'ARTISAN15', discount_type: 'percentage', discount_value: 15, active: true, expiry: '2028-12-31T23:59:59.000Z' },
+  { id: 'festive20', code: 'FESTIVE20', discount_type: 'percentage', discount_value: 20, active: true, expiry: '2028-12-31T23:59:59.000Z' }
+];
+
+const getLocalCoupons = (): Coupon[] => {
+  try {
+    const stored = localStorage.getItem('craftkalash_coupons');
+    if (stored) return JSON.parse(stored);
+    localStorage.setItem('craftkalash_coupons', JSON.stringify(DEFAULT_COUPONS));
+    return DEFAULT_COUPONS;
+  } catch {
+    return DEFAULT_COUPONS;
+  }
+};
+
+const saveLocalCoupons = (coupons: Coupon[]) => {
+  try {
+    localStorage.setItem('craftkalash_coupons', JSON.stringify(coupons));
+  } catch (err) {
+    console.error('Failed to save local coupons:', err);
+  }
+};
+
 export const couponsService = {
-  async validateCoupon(code: string): Promise<Coupon | null> {
+  async getCoupons(): Promise<Coupon[]> {
     try {
       ensureConfigured();
-      const cleanCode = code.trim().toUpperCase();
+      const { data, error } = await supabase
+        .from('coupons')
+        .select('*');
+      if (error) throw error;
+      return data || [];
+    } catch (err) {
+      console.warn('Database getCoupons failed, returning local fallback coupons:', err);
+      return getLocalCoupons();
+    }
+  },
+
+  async createCoupon(coupon: Omit<Coupon, 'id'> & { id?: string }): Promise<Coupon | null> {
+    const newCoupon: Coupon = {
+      id: coupon.id || `coupon-${Date.now()}`,
+      code: coupon.code.trim().toUpperCase(),
+      discount_type: coupon.discount_type,
+      discount_value: coupon.discount_value,
+      active: coupon.active ?? true,
+      expiry: coupon.expiry
+    };
+
+    try {
+      ensureConfigured();
+      const { data, error } = await supabase
+        .from('coupons')
+        .insert({
+          ...newCoupon,
+          created_at: new Date().toISOString()
+        })
+        .select()
+        .single();
+      if (error) throw error;
+      return data;
+    } catch (err) {
+      console.warn('Database createCoupon failed, saving locally:', err);
+      const coupons = getLocalCoupons();
+      const updated = [newCoupon, ...coupons];
+      saveLocalCoupons(updated);
+      return newCoupon;
+    }
+  },
+
+  async toggleCouponActive(couponId: string): Promise<boolean> {
+    try {
+      ensureConfigured();
+      if (!isUUID(couponId)) throw new Error('Not a valid DB ID');
+      
+      const { data: current, error: fetchErr } = await supabase
+        .from('coupons')
+        .select('active')
+        .eq('id', couponId)
+        .single();
+      if (fetchErr) throw fetchErr;
+
+      const { error } = await supabase
+        .from('coupons')
+        .update({ active: !current.active })
+        .eq('id', couponId);
+      if (error) throw error;
+      return true;
+    } catch (err) {
+      console.warn('Database toggleCouponActive failed, toggling locally:', err);
+      const coupons = getLocalCoupons();
+      const updated = coupons.map(c => c.id === couponId ? { ...c, active: !c.active } : c);
+      saveLocalCoupons(updated);
+      return true;
+    }
+  },
+
+  async validateCoupon(code: string): Promise<Coupon | null> {
+    const cleanCode = code.trim().toUpperCase();
+    try {
+      ensureConfigured();
       const { data, error } = await supabase
         .from('coupons')
         .select('*')
@@ -1307,31 +1409,16 @@ export const couponsService = {
         .gt('expiry', new Date().toISOString())
         .maybeSingle();
       if (error) throw error;
-      return data;
+      if (data) return data;
+      
+      const locals = getLocalCoupons();
+      const match = locals.find(c => c.code === cleanCode && c.active && new Date(c.expiry) > new Date());
+      return match || null;
     } catch (err) {
       console.warn('Database coupon validation failed, matching local fallback coupons:', err);
-      const cleanCode = code.trim().toUpperCase();
-      if (cleanCode === 'FESTIVE20') {
-        return {
-          id: 'festive20',
-          code: 'FESTIVE20',
-          discount_type: 'percentage',
-          discount_value: 20,
-          active: true,
-          expiry: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString()
-        };
-      }
-      if (cleanCode === 'WELCOME10') {
-        return {
-          id: 'welcome10',
-          code: 'WELCOME10',
-          discount_type: 'percentage',
-          discount_value: 10,
-          active: true,
-          expiry: new Date(Date.now() + 1000 * 60 * 60 * 24 * 30).toISOString()
-        };
-      }
-      return null;
+      const locals = getLocalCoupons();
+      const match = locals.find(c => c.code === cleanCode && c.active && new Date(c.expiry) > new Date());
+      return match || null;
     }
   }
 };

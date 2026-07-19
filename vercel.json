@@ -1,0 +1,21 @@
+{
+  "version": 2,
+  "rewrites": [
+    {
+      "source": "/api/razorpay/config",
+      "destination": "/api/razorpay/config.ts"
+    },
+    {
+      "source": "/api/razorpay/create-order",
+      "destination": "/api/razorpay/create-order.ts"
+    },
+    {
+      "source": "/api/razorpay/verify-payment",
+      "destination": "/api/razorpay/verify-payment.ts"
+    },
+    {
+      "source": "/((?!api/).*)",
+      "destination": "/index.html"
+    }
+  ]
+}

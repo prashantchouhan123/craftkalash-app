@@ -168,7 +168,9 @@ export function ShopProvider({ children }: { children: React.ReactNode }) {
             }
             
             // Sync Orders
-            const userOrders = await orderService.getOrders(activeUser.id);
+            const userOrders = activeProfile.role === 'admin'
+              ? await orderService.getAllOrders()
+              : await orderService.getOrders(activeUser.id);
             setOrders(userOrders);
           }
         }
@@ -241,7 +243,9 @@ export function ShopProvider({ children }: { children: React.ReactNode }) {
       if (userCart.length > 0) {
         setCart(userCart);
       }
-      const userOrders = await orderService.getOrders(res.profile.id);
+      const userOrders = res.profile.role === 'admin'
+        ? await orderService.getAllOrders()
+        : await orderService.getOrders(res.profile.id);
       setOrders(userOrders);
     }
     
@@ -435,8 +439,7 @@ export function ShopProvider({ children }: { children: React.ReactNode }) {
       );
 
       // Refresh orders list
-      const updatedOrders = await orderService.getOrders(profile.id);
-      setOrders(updatedOrders);
+      await refreshOrders();
       
       // Clear local cart
       setCart([]);

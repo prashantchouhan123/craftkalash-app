@@ -63,7 +63,7 @@ export default function CartDrawer() {
       setFullName(profile.full_name);
       if (profile.phone) setPhone(profile.phone);
     }
-  }, [profile]);
+  }, [profile?.id]);
 
   const subtotal = getCartTotal();
   const shippingThreshold = 1500;

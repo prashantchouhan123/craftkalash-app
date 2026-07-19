@@ -107,6 +107,7 @@ export interface Order {
   created_at: string;
   items?: OrderItem[];
   shippingAddress?: Address;
+  customer_profile?: Profile;
   utr?: string;
   screenshot_url?: string;
   razorpay_order_id?: string;

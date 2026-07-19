@@ -46,7 +46,7 @@ export default function Checkout() {
       addToast('Your cart is empty. Please add items before checking out.', 'info');
       navigate('/shop');
     }
-  }, [cart, navigate, addToast]);
+  }, [cart.length]);
 
   // Steps: 1 | 2 | 3 | 4
   const [currentStep, setCurrentStep] = useState<number>(1);
@@ -106,7 +106,7 @@ export default function Checkout() {
       };
       loadSavedAddresses();
     }
-  }, [profile]);
+  }, [profile?.id]);
 
   // Calculations
   const subtotal = getCartTotal();

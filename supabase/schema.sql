@@ -274,6 +274,14 @@ create policy "Allow users to manage own cart items" on public.cart_items
 create policy "Allow users to manage own addresses" on public.addresses
   for all using (auth.uid() = user_id);
 
+create policy "Allow admin full access to addresses" on public.addresses
+  for all using (
+    exists (
+      select 1 from public.profiles
+      where profiles.id = auth.uid() and profiles.role = 'admin'
+    )
+  );
+
 -- orders Policies
 create policy "Allow users to read own orders" on public.orders
   for select using (auth.uid() = user_id);
@@ -303,6 +311,14 @@ create policy "Allow users to insert own order items" on public.order_items
     exists (
       select 1 from public.orders
       where orders.id = order_items.order_id and orders.user_id = auth.uid()
+    )
+  );
+
+create policy "Allow admin full access to order items" on public.order_items
+  for all using (
+    exists (
+      select 1 from public.profiles
+      where profiles.id = auth.uid() and profiles.role = 'admin'
     )
   );
 

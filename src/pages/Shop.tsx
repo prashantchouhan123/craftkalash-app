@@ -50,7 +50,7 @@ export default function Shop({ onQuickView }: ShopProps) {
     if (products.length > 0) {
       setMaxPrice(maxLimit);
     }
-  }, [products]);
+  }, [products.length, maxLimit]);
 
   // UI States
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
@@ -72,7 +72,16 @@ export default function Shop({ onQuickView }: ShopProps) {
       setIsLoading(false);
     }, 300);
     return () => clearTimeout(timer);
-  }, [selectedCategory, searchQuery, maxPrice, selectedAgeGroups, selectedMaterials, onlyInStock, minRating, sortBy]);
+  }, [
+    selectedCategory,
+    searchQuery,
+    maxPrice,
+    selectedAgeGroups.join(','),
+    selectedMaterials.join(','),
+    onlyInStock,
+    minRating,
+    sortBy
+  ]);
 
   // Save recent searches
   const handleSearchSubmit = (term: string) => {

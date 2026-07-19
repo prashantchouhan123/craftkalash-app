@@ -89,7 +89,7 @@ export default function Account() {
       setPhone(profile.phone || '');
       loadAddresses();
     }
-  }, [user, profile, navigate]);
+  }, [user?.id, profile?.id]);
 
   const loadAddresses = async () => {
     if (profile) {

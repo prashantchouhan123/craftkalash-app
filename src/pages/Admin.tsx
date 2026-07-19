@@ -32,7 +32,7 @@ import {
   Minus
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { addressService } from '../services/supabaseService';
+import { addressService, couponsService } from '../services/supabaseService';
 import { Product, Category, Order, Coupon, Review, Profile } from '../types';
 import ImageUpload from '../components/ImageUpload';
 
@@ -47,7 +47,8 @@ export default function Admin() {
     updatePaymentStatus,
     changeRole,
     profile,
-    addToast
+    addToast,
+    refreshOrders
   } = useShop();
 
   const navigate = useNavigate();
@@ -145,8 +146,15 @@ export default function Admin() {
       navigate('/auth');
     } else if (profile.role !== 'admin') {
       navigate('/account');
+    } else {
+      refreshOrders();
+      couponsService.getCoupons().then(list => {
+        if (list && list.length > 0) {
+          setCouponList(list);
+        }
+      });
     }
-  }, [profile, navigate]);
+  }, [profile?.id, profile?.role]);
 
   if (!profile || profile.role !== 'admin') {
     return (
@@ -270,10 +278,9 @@ export default function Admin() {
   };
 
   // COUPON HANDLERS
-  const handleCreateCoupon = (e: React.FormEvent) => {
+  const handleCreateCoupon = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newCoupon: Coupon = {
-      id: `coupon-${Date.now()}`,
+    const newCouponData = {
       code: couponCode.trim().toUpperCase(),
       discount_type: couponDiscType,
       discount_value: parseFloat(couponDiscValue) || 0,
@@ -281,7 +288,13 @@ export default function Admin() {
       expiry: couponExpiry
     };
 
-    setCouponList([newCoupon, ...couponList]);
+    const saved = await couponsService.createCoupon(newCouponData);
+    if (saved) {
+      setCouponList([saved, ...couponList]);
+      addToast(`Coupon code "${saved.code}" generated successfully!`, 'success');
+    } else {
+      addToast('Failed to create coupon code.', 'error');
+    }
     setIsCouponModalOpen(false);
     setCouponCode('');
     setCouponDiscValue('');
@@ -664,7 +677,13 @@ export default function Admin() {
                   </thead>
                   <tbody className="divide-y divide-brand-border/30">
                     {orders
-                      .filter(o => o.order_number.toLowerCase().includes(orderSearch.toLowerCase()) || o.shippingAddress?.full_name.toLowerCase().includes(orderSearch.toLowerCase()))
+                      .filter(o => {
+                        const s = orderSearch.toLowerCase();
+                        const numMatch = o.order_number.toLowerCase().includes(s);
+                        const shippingNameMatch = o.shippingAddress?.full_name?.toLowerCase()?.includes(s) || false;
+                        const profileNameMatch = o.customer_profile?.full_name?.toLowerCase()?.includes(s) || false;
+                        return numMatch || shippingNameMatch || profileNameMatch;
+                      })
                       .map((o) => {
                         const isExpanded = expandedOrderId === o.id;
                         
@@ -704,8 +723,14 @@ export default function Admin() {
                                 </button>
                               </td>
                               <td className="py-4 px-6">
-                                <strong className="block text-brand-text-primary font-bold">{o.shippingAddress?.full_name}</strong>
-                                <span className="text-[10px] text-gray-400 font-mono tracking-wider">{o.shippingAddress?.city}, {o.shippingAddress?.state}</span>
+                                <strong className="block text-brand-text-primary font-bold">
+                                  {o.shippingAddress?.full_name || o.customer_profile?.full_name || 'Customer'}
+                                </strong>
+                                <span className="text-[10px] text-gray-400 font-mono tracking-wider">
+                                  {o.shippingAddress 
+                                    ? `${o.shippingAddress.city}, ${o.shippingAddress.state}` 
+                                    : o.customer_profile?.email || 'No destination detail'}
+                                </span>
                               </td>
                               <td className="py-4 px-6 font-black text-brand-primary">₹{o.total}</td>
                               <td className="py-4 px-6">
@@ -738,10 +763,20 @@ export default function Admin() {
                                       <div>
                                         <h4 className="font-extrabold text-[10px] text-gray-400 uppercase tracking-wider mb-2">Delivery Address Details</h4>
                                         <div className="p-3 bg-white border border-brand-border/50 rounded-xl space-y-1 text-brand-text-primary">
-                                          <div><strong>Contact:</strong> {o.shippingAddress?.full_name} ({o.shippingAddress?.phone || 'No Phone'})</div>
-                                          <div><strong>Address:</strong> {o.shippingAddress?.address}</div>
-                                          <div><strong>Location:</strong> {o.shippingAddress?.city}, {o.shippingAddress?.state} - {o.shippingAddress?.pincode}</div>
-                                          <div><strong>Country:</strong> {o.shippingAddress?.country || 'India'}</div>
+                                          {o.shippingAddress ? (
+                                            <>
+                                              <div><strong>Contact:</strong> {o.shippingAddress.full_name} ({o.shippingAddress.phone || 'No Phone'})</div>
+                                              <div><strong>Address:</strong> {o.shippingAddress.address}</div>
+                                              <div><strong>Location:</strong> {o.shippingAddress.city}, {o.shippingAddress.state} - {o.shippingAddress.pincode}</div>
+                                              <div><strong>Country:</strong> {o.shippingAddress.country || 'India'}</div>
+                                            </>
+                                          ) : (
+                                            <>
+                                              <div><strong>Contact:</strong> {o.customer_profile?.full_name || 'Registered Customer'} ({o.customer_profile?.phone || 'No Phone'})</div>
+                                              <div><strong>Email:</strong> {o.customer_profile?.email || 'No email registered'}</div>
+                                              <div className="text-amber-600 font-semibold italic text-[10px] pt-1">No separate shipping address registered or RLS restricted.</div>
+                                            </>
+                                          )}
                                         </div>
                                       </div>
 
@@ -949,7 +984,15 @@ export default function Admin() {
                         <td className="py-4 px-6 font-semibold text-gray-400 font-mono">{c.expiry}</td>
                         <td className="py-4 px-6 text-right">
                           <button
-                            onClick={() => setCouponList(couponList.map(item => item.id === c.id ? { ...item, active: !item.active } : item))}
+                            onClick={async () => {
+                              const success = await couponsService.toggleCouponActive(c.id);
+                              if (success) {
+                                setCouponList(couponList.map(item => item.id === c.id ? { ...item, active: !item.active } : item));
+                                addToast(`Coupon "${c.code}" status toggled.`, 'info');
+                              } else {
+                                addToast('Failed to toggle coupon status.', 'error');
+                              }
+                            }}
                             className={`px-3 py-1 rounded-full text-[9px] font-black border uppercase cursor-pointer ${c.active ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-gray-50 text-gray-400 border-gray-200'}`}
                           >
                             {c.active ? 'Active' : 'Disabled'}

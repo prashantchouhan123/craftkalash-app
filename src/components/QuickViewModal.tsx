@@ -55,7 +55,7 @@ export default function QuickViewModal({ product, onClose, onSwitchProduct }: Qu
           setLoadingReviews(false);
         });
     }
-  }, [product]);
+  }, [product?.id]);
 
   // Write Review Form State
   const [reviewName, setReviewName] = useState('');
@@ -77,7 +77,7 @@ export default function QuickViewModal({ product, onClose, onSwitchProduct }: Qu
     setReviewName('');
     setReviewRating(5);
     setReviewComment('');
-  }, [product]);
+  }, [product?.id]);
 
   if (!product) return null;
 
