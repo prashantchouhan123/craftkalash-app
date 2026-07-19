@@ -144,8 +144,8 @@ export default function Home({ onQuickView }: HomeProps) {
             {/* Inner elegant frame container */}
             <div className="relative w-full h-full rounded-2xl overflow-hidden border border-brand-border/40 bg-white shadow-inner">
               <img
-                src="https://images.unsplash.com/photo-1515488042361-404e9250afef?auto=format&fit=crop&q=80&w=1600"
-                alt="Handcrafted toys background"
+                src="/images/hero-banner.svg"
+                alt="CraftKalash Handcrafted Toys Collection"
                 referrerPolicy="no-referrer"
                 className="w-full h-full object-cover object-center transform scale-100 group-hover:scale-[1.03] transition-transform duration-700 ease-out"
               />

@@ -6,9 +6,10 @@ import { useShop } from '../context/ShopContext';
 interface ImageUploadProps {
   value: string;
   onChange: (url: string) => void;
+  label?: string;
 }
 
-export default function ImageUpload({ value, onChange }: ImageUploadProps) {
+export default function ImageUpload({ value, onChange, label = 'Product Asset' }: ImageUploadProps) {
   const { addToast } = useShop();
   const [isDragging, setIsDragging] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -171,7 +172,7 @@ CREATE POLICY "Allow public deletes" ON storage.objects
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <label className="font-bold text-[9px] text-gray-400 uppercase tracking-wider">Product Asset</label>
+        <label className="font-bold text-[9px] text-gray-400 uppercase tracking-wider">{label}</label>
         {value && (
           <button
             type="button"

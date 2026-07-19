@@ -516,18 +516,118 @@ const CATEGORY_SLUG_TO_ID: Record<string, string> = {
   'vehicles-motion': '44444444-4444-4444-4444-444444444444',
 };
 
+const getLocalAddedCategories = (): Category[] => {
+  try {
+    const stored = localStorage.getItem('craftkalash_added_categories');
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+};
+
+const getLocalUpdatedCategories = (): Record<string, Partial<Category>> => {
+  try {
+    const stored = localStorage.getItem('craftkalash_updated_categories');
+    return stored ? JSON.parse(stored) : {};
+  } catch {
+    return {};
+  }
+};
+
 export const categoryService = {
   async getCategories(): Promise<Category[]> {
+    let baseList: Category[] = [];
     try {
       ensureConfigured();
       const { data, error } = await supabase
         .from('categories')
         .select('*');
       if (error) throw error;
-      return data || [];
+      baseList = data || [];
     } catch (err) {
       console.warn('Database categories fetch failed, falling back to local categories:', err);
-      return CATEGORIES;
+      baseList = [...CATEGORIES];
+    }
+
+    // Merge with local offline/mock storage states
+    const localAdded = getLocalAddedCategories();
+    const localUpdated = getLocalUpdatedCategories();
+
+    let mergedList = [...baseList];
+
+    // 1. Add locally added categories if not already there
+    for (const lc of localAdded) {
+      if (!mergedList.some(c => c.id === lc.id)) {
+        mergedList.push(lc);
+      }
+    }
+
+    // 2. Apply updated fields
+    mergedList = mergedList.map(c => {
+      if (localUpdated[c.id]) {
+        return {
+          ...c,
+          ...localUpdated[c.id]
+        };
+      }
+      return c;
+    });
+
+    return mergedList;
+  },
+
+  async createCategory(category: Partial<Category>): Promise<{ data: Category | null; error: string | null }> {
+    const localId = category.id || category.name?.toLowerCase().replace(/\s+/g, '-') || `cat-${Math.random().toString(36).substring(2, 9)}`;
+    const newCategory: Category = {
+      id: localId,
+      name: category.name || 'New Category',
+      description: category.description || '',
+      image: category.image || 'https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?auto=format&fit=crop&q=80&w=300',
+      slug: category.slug || localId
+    };
+
+    try {
+      ensureConfigured();
+      const { data, error } = await supabase
+        .from('categories')
+        .insert([newCategory])
+        .select()
+        .single();
+      if (error) throw error;
+      return { data, error: null };
+    } catch (err: any) {
+      console.warn('Database createCategory failed, falling back to local action:', err);
+
+      const localAdded = getLocalAddedCategories();
+      localAdded.push(newCategory);
+      localStorage.setItem('craftkalash_added_categories', JSON.stringify(localAdded));
+
+      return { data: newCategory, error: null };
+    }
+  },
+
+  async updateCategory(id: string, updates: Partial<Category>): Promise<{ data: Category | null; error: string | null }> {
+    try {
+      ensureConfigured();
+      const { data, error } = await supabase
+        .from('categories')
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+      return { data, error: null };
+    } catch (err: any) {
+      console.warn('Database updateCategory failed, falling back to local action:', err);
+
+      const localUpdated = getLocalUpdatedCategories();
+      localUpdated[id] = {
+        ...(localUpdated[id] || {}),
+        ...updates
+      };
+      localStorage.setItem('craftkalash_updated_categories', JSON.stringify(localUpdated));
+
+      return { data: null, error: null };
     }
   }
 };

@@ -1,0 +1,313 @@
+<svg width="800" height="1000" viewBox="0 0 800 1000" fill="none" xmlns="http://www.w3.org/2000/svg" style="background-color: #ffffff;">
+  <!-- Background -->
+  <rect width="800" height="1000" fill="#ffffff" />
+
+  <!-- DECORATIVE ACCENTS -->
+  <g opacity="0.3">
+    <circle cx="700" cy="150" r="100" fill="#f5f0eb" />
+    <circle cx="100" cy="600" r="150" fill="#fcf9f5" />
+  </g>
+
+  <!-- BRANDING SECTION (Top-Left) -->
+  <g transform="translate(60, 100)">
+    <!-- Subtitle: Featured wooden sculpture -->
+    <text x="0" y="0" font-family="'Inter', sans-serif" font-size="22" font-weight="400" fill="#111111" letter-spacing="-0.02em">
+      Featured wooden sculpture
+    </text>
+
+    <!-- Main Logo Group -->
+    <g transform="translate(0, 40)">
+      <!-- Large Stylized 'K' -->
+      <path d="M 0,20 L 0,150 M 0,85 L 65,20 M 25,110 L 70,150" stroke="#2c7a33" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="M 0,20 L 25,20 M 0,150 L 25,150" stroke="#2c7a33" stroke-width="12" stroke-linecap="round" />
+      
+      <!-- Sprouting Leaves at the top-left of 'K' -->
+      <g transform="translate(-15, 0)">
+        <path d="M 0,20 Q -25,0 -40,-15 Q -15,-20 0,20" fill="#7cb342" />
+        <path d="M 0,20 Q 25,0 40,-15 Q 15,-20 0,20" fill="#4caf50" />
+        <path d="M -40,-15 Q -15,-30 0,-45 Q -10,-15 -40,-15" fill="#8bc34a" />
+        <path d="M 0,20 L -20,-10" stroke="#2c7a33" stroke-width="2" stroke-linecap="round" />
+      </g>
+
+      <!-- Typography 'Craft Kalash' -->
+      <text x="110" y="70" font-family="'Playfair Display', 'Georgia', serif" font-size="68" font-weight="800" fill="#4a3b32" letter-spacing="-0.01em">Craft</text>
+      <text x="110" y="130" font-family="'Playfair Display', 'Georgia', serif" font-size="62" font-weight="800" fill="#4a3b32" letter-spacing="-0.01em">alash</text>
+
+      <!-- Elegant wheat/leaf stalk trailing from 'h' -->
+      <path d="M 285,115 C 320,110 360,95 400,60" stroke="#9e8a78" stroke-width="3" fill="none" stroke-linecap="round" />
+      <path d="M 320,112 Q 315,95 305,98 Q 315,110 320,112" fill="#9e8a78" />
+      <path d="M 340,105 Q 345,88 335,85 Q 338,100 340,105" fill="#9e8a78" />
+      <path d="M 360,95 Q 375,80 365,75 Q 360,90 360,95" fill="#9e8a78" />
+      <path d="M 380,80 Q 400,70 392,62 Q 380,75 380,80" fill="#9e8a78" />
+      <path d="M 400,60 Q 420,55 415,45 Q 402,55 400,60" fill="#9e8a78" />
+    </g>
+
+    <!-- Social Link / Divider Line -->
+    <g transform="translate(0, 230)">
+      <!-- Line Left -->
+      <line x1="0" y1="10" x2="45" y2="10" stroke="#2c7a33" stroke-width="2.5" stroke-linecap="round" />
+      
+      <!-- Instagram Glyph -->
+      <g transform="translate(60, 0)">
+        <rect x="-10" y="0" width="20" height="20" rx="6" stroke="#2c7a33" stroke-width="2.5" fill="none" />
+        <circle cx="0" cy="10" r="4.5" stroke="#2c7a33" stroke-width="2" />
+        <circle cx="5" cy="5" r="1.2" fill="#2c7a33" />
+      </g>
+
+      <!-- Instagram Text Handle -->
+      <text x="90" y="15" font-family="'Inter', sans-serif" font-size="20" font-weight="700" fill="#2c7a33" letter-spacing="0.05em">| craftkalash</text>
+      
+      <!-- Line Right -->
+      <line x1="250" y1="10" x2="295" y2="10" stroke="#2c7a33" stroke-width="2.5" stroke-linecap="round" />
+    </g>
+  </g>
+
+
+  <!-- TOY COLLAGE (Right & Bottom Area) -->
+
+  <!-- Toy 1: Traditional Miniature Wooden Swing (Jhula) (Top Right) -->
+  <g transform="translate(560, 280)">
+    <!-- Drop Shadow -->
+    <ellipse cx="60" cy="115" rx="50" ry="10" fill="#000000" fill-opacity="0.06" />
+    <!-- Pillars / Frame -->
+    <path d="M 15,110 L 15,10 M 105,110 L 105,10" stroke="#e65100" stroke-width="8" stroke-linecap="round" />
+    <path d="M 5,10 L 115,10" stroke="#e65100" stroke-width="10" stroke-linecap="round" />
+    <!-- Yellow Support Spindles -->
+    <path d="M 15,40 L 105,40 M 15,80 L 105,80" stroke="#ffb300" stroke-width="4" />
+    <!-- Swing Chains / Ropes -->
+    <line x1="35" y1="10" x2="35" y2="70" stroke="#757575" stroke-width="2.5" />
+    <line x1="85" y1="10" x2="85" y2="70" stroke="#757575" stroke-width="2.5" />
+    <!-- Hanging Crib / Seat -->
+    <rect x="25" y="70" width="70" height="15" rx="3" fill="#d84315" />
+    <!-- Pattern on seat -->
+    <rect x="30" y="73" width="60" height="9" fill="#ffb300" rx="1.5" />
+    <line x1="35" y1="77" x2="85" y2="77" stroke="#d84315" stroke-width="2.5" stroke-dasharray="2 2" />
+    <!-- Tiny brass hanging bells visual -->
+    <circle cx="15" cy="55" r="4.5" fill="#ffb300" />
+    <circle cx="105" cy="55" r="4.5" fill="#ffb300" />
+    <circle cx="50" cy="10" r="3.5" fill="#ffb300" />
+    <circle cx="70" cy="10" r="3.5" fill="#ffb300" />
+  </g>
+
+
+  <!-- Toy 2: Natural Dark-wood Massager / Roller -->
+  <g transform="translate(390, 450)">
+    <!-- Shadow -->
+    <ellipse cx="70" cy="55" rx="60" ry="8" fill="#000000" fill-opacity="0.05" />
+    <!-- Curved Handle -->
+    <path d="M 10,25 Q 70,5 130,25" stroke="#5d4037" stroke-width="12" stroke-linecap="round" fill="none" />
+    <!-- Metal/wood shafts -->
+    <line x1="30" y1="20" x2="30" y2="45" stroke="#8d6e63" stroke-width="6" />
+    <line x1="110" y1="20" x2="110" y2="45" stroke="#8d6e63" stroke-width="6" />
+    <!-- Two Ribbed Cylinders -->
+    <g transform="translate(10, 35)">
+      <rect x="0" y="0" width="40" height="20" rx="4" fill="#3e2723" />
+      <line x1="8" y1="0" x2="8" y2="20" stroke="#5d4037" stroke-width="3" />
+      <line x1="20" y1="0" x2="20" y2="20" stroke="#5d4037" stroke-width="3" />
+      <line x1="32" y1="0" x2="32" y2="20" stroke="#5d4037" stroke-width="3" />
+    </g>
+    <g transform="translate(90, 35)">
+      <rect x="0" y="0" width="40" height="20" rx="4" fill="#3e2723" />
+      <line x1="8" y1="0" x2="8" y2="20" stroke="#5d4037" stroke-width="3" />
+      <line x1="20" y1="0" x2="20" y2="20" stroke="#5d4037" stroke-width="3" />
+      <line x1="32" y1="0" x2="32" y2="20" stroke="#5d4037" stroke-width="3" />
+    </g>
+  </g>
+
+
+  <!-- Toy 3: Natural Light-wood Dumper Truck -->
+  <g transform="translate(560, 420)">
+    <!-- Shadow -->
+    <ellipse cx="70" cy="100" rx="65" ry="10" fill="#000000" fill-opacity="0.06" />
+    <!-- Chassis / Base -->
+    <rect x="10" y="70" width="120" height="12" rx="3" fill="#8d6e63" />
+    <!-- Cabin -->
+    <rect x="15" y="35" width="45" height="35" rx="4" fill="#bcaaa4" />
+    <!-- Window -->
+    <rect x="25" y="42" width="20" height="15" rx="2" fill="#ffffff" fill-opacity="0.8" />
+    <!-- Dumper Bed (angled) -->
+    <g transform="translate(65, 30) rotate(-12)">
+      <path d="M 0,0 L 55,0 L 50,38 L -5,38 Z" fill="#d7ccc8" />
+      <!-- Support pillar -->
+      <line x1="25" y1="38" x2="25" y2="50" stroke="#8d6e63" stroke-width="5" />
+    </g>
+    <!-- Big wheels -->
+    <circle cx="35" cy="88" r="16" fill="#4e342e" />
+    <circle cx="35" cy="88" r="6" fill="#bcaaa4" />
+    <circle cx="105" cy="88" r="16" fill="#4e342e" />
+    <circle cx="105" cy="88" r="6" fill="#bcaaa4" />
+  </g>
+
+
+  <!-- Toy 4: Miniature Traditional Charpai (Cot) (Middle Left) -->
+  <g transform="translate(240, 590)">
+    <!-- Shadow -->
+    <ellipse cx="75" cy="85" rx="65" ry="8" fill="#000000" fill-opacity="0.05" />
+    <!-- Dark Wood Turned Legs -->
+    <rect x="15" y="40" width="10" height="40" rx="2" fill="#3e2723" />
+    <rect x="125" y="40" width="10" height="40" rx="2" fill="#3e2723" />
+    <rect x="35" y="30" width="10" height="40" rx="2" fill="#3e2723" />
+    <rect x="105" y="30" width="10" height="40" rx="2" fill="#3e2723" />
+    <!-- Wooden Frame -->
+    <rect x="10" y="35" width="130" height="12" rx="2" fill="#4e342e" />
+    <!-- Woven Bed Pattern (Pink/Magenta & Orange cross-hatch) -->
+    <g transform="translate(15, 37)">
+      <rect x="0" y="0" width="120" height="8" rx="1" fill="#e91e63" />
+      <!-- Orange Diamond Overlays -->
+      <path d="M 10,0 L 20,8 M 30,0 L 40,8 M 50,0 L 60,8 M 70,0 L 80,8 M 90,0 L 100,8 M 110,0 L 120,8" stroke="#ff9800" stroke-width="2.5" />
+      <path d="M 20,0 L 10,8 M 40,0 L 30,8 M 60,0 L 50,8 M 80,0 L 70,8 M 100,0 L 90,8 M 120,0 L 110,8" stroke="#ff9800" stroke-width="2.5" />
+    </g>
+  </g>
+
+
+  <!-- Toy 5: Traditional Rajasthani Hand-painted Couple Dolls -->
+  <g transform="translate(420, 560)">
+    <!-- Shadow -->
+    <ellipse cx="65" cy="145" rx="55" ry="8" fill="#000000" fill-opacity="0.05" />
+
+    <!-- Male Doll (Left) -->
+    <g transform="translate(15, 20)">
+      <!-- Body base -->
+      <path d="M 5,120 L 30,120 L 25,40 L 10,40 Z" fill="#dd2c00" />
+      <!-- Yellow details -->
+      <line x1="17.5" y1="40" x2="17.5" y2="120" stroke="#ffb300" stroke-width="3.5" />
+      <!-- Belt -->
+      <rect x="8" y="75" width="19" height="6" fill="#ffb300" />
+      <!-- Neck -->
+      <rect x="14" y="28" width="7" height="12" fill="#ffe0b2" />
+      <!-- Head -->
+      <circle cx="17.5" cy="20" r="11" fill="#ffe0b2" />
+      <!-- Eyes and Mustache -->
+      <circle cx="14" cy="18" r="1.5" fill="#000000" />
+      <circle cx="21" cy="18" r="1.5" fill="#000000" />
+      <path d="M 12,24 Q 17.5,21 23,24" stroke="#000000" stroke-width="2" fill="none" stroke-linecap="round" />
+      <!-- Green Turban -->
+      <path d="M 6,13 Q 17.5,0 29,13 C 25,8 10,8 6,13" fill="#2e7d32" />
+      <circle cx="17.5" cy="6" r="4.5" fill="#ffb300" />
+    </g>
+
+    <!-- Female Doll (Right) -->
+    <g transform="translate(55, 25)">
+      <!-- Flared Skirt / Ghagra -->
+      <path d="M 15,35 L 3,115 C 10,118 25,118 32,115 L 20,35 Z" fill="#dd2c00" />
+      <!-- Yellow dots on skirt -->
+      <circle cx="8" cy="60" r="2" fill="#ffb300" />
+      <circle cx="27" cy="60" r="2" fill="#ffb300" />
+      <circle cx="11" cy="85" r="2" fill="#ffb300" />
+      <circle cx="24" cy="85" r="2" fill="#ffb300" />
+      <circle cx="17.5" cy="105" r="2" fill="#ffb300" />
+      <!-- Blouse / Choli -->
+      <path d="M 11,35 L 24,35 L 22,60 L 13,60 Z" fill="#ffb300" />
+      <!-- Neck / Face -->
+      <rect x="15" y="25" width="5" height="10" fill="#ffe0b2" />
+      <circle cx="17.5" cy="18" r="10" fill="#ffe0b2" />
+      <!-- Traditional jewelry / bindi -->
+      <circle cx="17.5" cy="14" r="2" fill="#dd2c00" />
+      <!-- Eyes -->
+      <circle cx="14" cy="18" r="1.2" fill="#000000" />
+      <circle cx="21" cy="18" r="1.2" fill="#000000" />
+      <!-- Red Head covering / Odhni -->
+      <path d="M 7,16 Q 17.5,4 28,16 L 31,45 L 4,45 Z" fill="#dd2c00" opacity="0.85" />
+    </g>
+  </g>
+
+
+  <!-- Toy 6: Handcrafted Wheeled Launcher / Cannon -->
+  <g transform="translate(560, 560)">
+    <!-- Shadow -->
+    <ellipse cx="65" cy="120" rx="55" ry="8" fill="#000000" fill-opacity="0.05" />
+    <!-- Main base carriage -->
+    <rect x="20" y="75" width="90" height="20" rx="5" fill="#a1887f" />
+    <rect x="30" y="68" width="70" height="8" rx="2" fill="#8d6e63" />
+    <!-- Golden wooden barrel -->
+    <g transform="translate(15, 32) rotate(-20)">
+      <rect x="20" y="10" width="75" height="22" rx="4" fill="#bcaaa4" />
+      <rect x="15" y="7" width="10" height="28" rx="2" fill="#8d6e63" />
+      <circle cx="85" cy="21" r="5" fill="#4e342e" />
+    </g>
+    <!-- Solid dark wheels -->
+    <circle cx="40" cy="98" r="18" fill="#4e342e" />
+    <circle cx="40" cy="98" r="6" fill="#ffe0b2" />
+    <circle cx="90" cy="98" r="18" fill="#4e342e" />
+    <circle cx="90" cy="98" r="6" fill="#ffe0b2" />
+  </g>
+
+
+  <!-- ROW OF STACKERS (Bottom Section) -->
+
+  <!-- Stacker 1 (Left-ish) -->
+  <g transform="translate(100, 720)">
+    <ellipse cx="45" cy="155" rx="40" ry="8" fill="#000000" fill-opacity="0.06" />
+    <!-- Stand -->
+    <rect x="37" y="20" width="16" height="130" rx="2" fill="#ffb300" />
+    <rect x="15" y="140" width="60" height="15" rx="3" fill="#d84315" />
+    <!-- Colorful stacking beads/rings -->
+    <ellipse cx="45" cy="50" rx="20" ry="12" fill="#d84315" />
+    <ellipse cx="45" cy="70" rx="25" ry="13" fill="#ffb300" />
+    <ellipse cx="45" cy="90" rx="30" ry="14" fill="#2e7d32" />
+    <ellipse cx="45" cy="110" rx="33" ry="15" fill="#0288d1" />
+    <ellipse cx="45" cy="130" rx="36" ry="16" fill="#e65100" />
+    <!-- Top knob -->
+    <circle cx="45" cy="15" r="10" fill="#d84315" />
+  </g>
+
+  <!-- Stacker 2 (Mid-Left-ish) -->
+  <g transform="translate(260, 715)">
+    <ellipse cx="45" cy="160" rx="42" ry="8" fill="#000000" fill-opacity="0.06" />
+    <!-- Base frame -->
+    <path d="M 5,145 L 85,145 L 75,130 L 15,130 Z" fill="#8d6e63" />
+    <rect x="10" y="145" width="70" height="15" rx="3" fill="#5d4037" />
+    <!-- Spindles / Pegs -->
+    <line x1="25" y1="50" x2="25" y2="135" stroke="#ffb300" stroke-width="6" stroke-linecap="round" />
+    <line x1="45" y1="30" x2="45" y2="135" stroke="#ffb300" stroke-width="6" stroke-linecap="round" />
+    <line x1="65" y1="50" x2="65" y2="135" stroke="#ffb300" stroke-width="6" stroke-linecap="round" />
+    <!-- Geometric Blocks Stacked -->
+    <rect x="15" y="110" width="20" height="20" rx="4" fill="#d84315" />
+    <circle cx="45" cy="120" r="11" fill="#2e7d32" />
+    <polygon points="65,102 75,122 55,122" fill="#0288d1" />
+    
+    <rect x="17" y="90" width="16" height="16" rx="3" fill="#ffb300" />
+    <circle cx="45" cy="98" r="9" fill="#e65100" />
+    
+    <circle cx="45" cy="78" r="7.5" fill="#2e7d32" />
+  </g>
+
+  <!-- Stacker 3 (Mid-Right-ish) -->
+  <g transform="translate(440, 715)">
+    <ellipse cx="45" cy="160" rx="42" ry="8" fill="#000000" fill-opacity="0.06" />
+    <!-- Yellow frame container -->
+    <path d="M 10,150 L 80,150 L 80,40 L 70,40 L 70,140 L 20,140 L 20,40 L 10,40 Z" fill="#ffb300" />
+    <rect x="5" y="145" width="80" height="15" rx="4" fill="#d84315" />
+    <!-- Hanging multi-colored bells inside -->
+    <circle cx="45" cy="65" r="14" fill="#2e7d32" />
+    <circle cx="45" cy="100" r="11" fill="#e65100" />
+    <circle cx="45" cy="125" r="8" fill="#ffb300" />
+    <!-- Ropes for hanging bells -->
+    <line x1="45" y1="40" x2="45" y2="51" stroke="#5d4037" stroke-width="2" />
+    <!-- Top decorative spheres -->
+    <circle cx="15" cy="35" r="7" fill="#d84315" />
+    <circle cx="75" cy="35" r="7" fill="#d84315" />
+  </g>
+
+  <!-- Stacker 4 (Right-ish) -->
+  <g transform="translate(610, 715)">
+    <ellipse cx="45" cy="160" rx="40" ry="8" fill="#000000" fill-opacity="0.06" />
+    <!-- Base -->
+    <rect x="15" y="142" width="60" height="15" rx="3" fill="#3e2723" />
+    <!-- Tall orange center post -->
+    <rect x="41" y="25" width="8" height="120" rx="1" fill="#e65100" />
+    <!-- Horizontal bars making it a ladder/balancing toy -->
+    <line x1="25" y1="50" x2="65" y2="50" stroke="#ffb300" stroke-width="5" stroke-linecap="round" />
+    <line x1="20" y1="80" x2="70" y2="80" stroke="#ffb300" stroke-width="5" stroke-linecap="round" />
+    <line x1="15" y1="110" x2="75" y2="110" stroke="#ffb300" stroke-width="5" stroke-linecap="round" />
+    <!-- Tiny colorful dangling spheres on the edges -->
+    <circle cx="25" cy="60" r="6" fill="#d84315" />
+    <circle cx="65" cy="60" r="6" fill="#d84315" />
+    <circle cx="20" cy="90" r="6" fill="#2e7d32" />
+    <circle cx="70" cy="90" r="6" fill="#2e7d32" />
+    <circle cx="15" cy="120" r="6" fill="#0288d1" />
+    <circle cx="75" cy="120" r="6" fill="#0288d1" />
+    <!-- Top crowning sphere -->
+    <circle cx="45" cy="20" r="10" fill="#d84315" />
+  </g>
+</svg>

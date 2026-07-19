@@ -39,10 +39,13 @@ import ImageUpload from '../components/ImageUpload';
 export default function Admin() {
   const { 
     products, 
+    categories,
     orders, 
     addAdminProduct, 
     editAdminProduct, 
     deleteAdminProduct, 
+    addAdminCategory,
+    editAdminCategory,
     updateOrderStatus, 
     updatePaymentStatus,
     changeRole,
@@ -133,12 +136,20 @@ export default function Admin() {
   ]);
 
   // Dynamic products and categories list
-  const [adminCategories, setAdminCategories] = useState<Category[]>([
-    { id: 'infant-toddler', name: 'Infant & Toddler', description: 'Gentle materials, soothing sounds, and safe edges.', image: 'https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?auto=format&fit=crop&q=80&w=300' },
-    { id: 'imaginary-play', name: 'Imaginary Play', description: 'Open-ended worlds, wooden kitchens, and story pieces.', image: 'https://images.unsplash.com/photo-1515488042361-404e9250afef?auto=format&fit=crop&q=80&w=300' },
-    { id: 'puzzles-blocks', name: 'Puzzles & Blocks', description: 'Geometric stackers, nesting trees, and spatial blocks.', image: 'https://images.unsplash.com/photo-1608447714925-599deeb5a682?auto=format&fit=crop&q=80&w=300' },
-    { id: 'vehicles-motion', name: 'Vehicles & Motion', description: 'Smooth-rolling locomotives and race cars.', image: 'https://images.unsplash.com/photo-1587654780291-39c9404d746b?auto=format&fit=crop&q=80&w=300' }
-  ]);
+  const [adminCategories, setAdminCategories] = useState<Category[]>(() => {
+    return categories && categories.length > 0 ? categories : [
+      { id: 'infant-toddler', name: 'Infant & Toddler', description: 'Gentle materials, soothing sounds, and safe edges.', image: 'https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?auto=format&fit=crop&q=80&w=300' },
+      { id: 'imaginary-play', name: 'Imaginary Play', description: 'Open-ended worlds, wooden kitchens, and story pieces.', image: 'https://images.unsplash.com/photo-1515488042361-404e9250afef?auto=format&fit=crop&q=80&w=300' },
+      { id: 'puzzles-blocks', name: 'Puzzles & Blocks', description: 'Geometric stackers, nesting trees, and spatial blocks.', image: 'https://images.unsplash.com/photo-1608447714925-599deeb5a682?auto=format&fit=crop&q=80&w=300' },
+      { id: 'vehicles-motion', name: 'Vehicles & Motion', description: 'Smooth-rolling locomotives and race cars.', image: 'https://images.unsplash.com/photo-1587654780291-39c9404d746b?auto=format&fit=crop&q=80&w=300' }
+    ];
+  });
+
+  useEffect(() => {
+    if (categories && categories.length > 0) {
+      setAdminCategories(categories);
+    }
+  }, [categories]);
 
   // Verify Admin privileges on render
   useEffect(() => {
@@ -259,20 +270,26 @@ export default function Admin() {
     setIsCategoryModalOpen(true);
   };
 
-  const handleCategorySubmit = (e: React.FormEvent) => {
+  const handleCategorySubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const newId = catName.toLowerCase().replace(/\s+/g, '-');
-    const newCat: Category = {
-      id: editingCatId || newId,
+    const newCat: Partial<Category> = {
       name: catName,
       description: catDescription,
-      image: catImage || 'https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?auto=format&fit=crop&q=80&w=300'
+      image: catImage || 'https://images.unsplash.com/photo-1596461404969-9ae70f2830c1?auto=format&fit=crop&q=80&w=300',
+      slug: newId
     };
 
     if (editingCatId) {
-      setAdminCategories(adminCategories.map(c => c.id === editingCatId ? newCat : c));
+      const success = await editAdminCategory(editingCatId, newCat);
+      if (success) {
+        addToast('Heirloom category updated successfully.', 'success');
+      }
     } else {
-      setAdminCategories([...adminCategories, newCat]);
+      const success = await addAdminCategory({ ...newCat, id: newId });
+      if (success) {
+        addToast('Heirloom category successfully added!', 'success');
+      }
     }
     setIsCategoryModalOpen(false);
   };
@@ -1420,7 +1437,7 @@ export default function Admin() {
               initial={{ opacity: 0, scale: 0.95, y: 15 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 15 }}
-              className="bg-white rounded-3xl p-6 max-w-sm w-full border border-brand-border/60 shadow-2xl relative space-y-4"
+              className="bg-white rounded-3xl p-6 max-w-md w-full border border-brand-border/60 shadow-2xl relative space-y-4"
             >
               <button
                 onClick={() => setIsCategoryModalOpen(false)}
@@ -1446,15 +1463,8 @@ export default function Admin() {
                   />
                 </div>
 
-                <div className="space-y-1">
-                  <label className="font-bold text-[9px] text-gray-400 uppercase">Image URL</label>
-                  <input
-                    type="text"
-                    placeholder="https://images.unsplash.com/photo-..."
-                    value={catImage}
-                    onChange={(e) => setCatImage(e.target.value)}
-                    className="w-full bg-brand-bg/40 border border-brand-border/60 rounded-xl px-3 py-2 font-bold"
-                  />
+                <div>
+                  <ImageUpload value={catImage} onChange={setCatImage} label="Category Image" />
                 </div>
 
                 <div className="space-y-1">

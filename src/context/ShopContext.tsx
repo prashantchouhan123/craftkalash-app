@@ -80,6 +80,8 @@ interface ShopContextType {
   addAdminProduct: (prod: Partial<Product>) => Promise<boolean>;
   editAdminProduct: (id: string, updates: Partial<Product>) => Promise<boolean>;
   deleteAdminProduct: (id: string) => Promise<boolean>;
+  addAdminCategory: (cat: Partial<Category>) => Promise<boolean>;
+  editAdminCategory: (id: string, updates: Partial<Category>) => Promise<boolean>;
   isSupabaseConfigured: boolean;
 }
 
@@ -523,6 +525,30 @@ export function ShopProvider({ children }: { children: React.ReactNode }) {
     return true;
   };
 
+  const addAdminCategory = async (cat: Partial<Category>): Promise<boolean> => {
+    const res = await categoryService.createCategory(cat);
+    if (res.error) {
+      addToast(res.error, 'error');
+      return false;
+    }
+    // Refresh Categories
+    const updated = await categoryService.getCategories();
+    setCategories(updated);
+    return true;
+  };
+
+  const editAdminCategory = async (id: string, updates: Partial<Category>): Promise<boolean> => {
+    const res = await categoryService.updateCategory(id, updates);
+    if (res.error) {
+      addToast(res.error, 'error');
+      return false;
+    }
+    // Refresh Categories
+    const updated = await categoryService.getCategories();
+    setCategories(updated);
+    return true;
+  };
+
   return (
     <ShopContext.Provider
       value={{
@@ -574,6 +600,8 @@ export function ShopProvider({ children }: { children: React.ReactNode }) {
         addAdminProduct,
         editAdminProduct,
         deleteAdminProduct,
+        addAdminCategory,
+        editAdminCategory,
         isSupabaseConfigured
       }}
     >

@@ -73,9 +73,9 @@ export default function Contact() {
                 <MapPin className="w-5 h-5" />
               </div>
               <div>
-                <h4 className="font-bold">Flagship Showroom</h4>
+                <h4 className="font-bold">Workshop &amp; Registered Address</h4>
                 <p className="text-xs text-brand-text-secondary font-light">
-                  Plot 18, Sector 4, Crafting District, Jaipur, Rajasthan, India
+                  C/O: Vinay Panchal, ward no 10 budnighat, Budni, Sehore, Madhya Pradesh - 466445
                 </p>
               </div>
             </div>
@@ -87,7 +87,7 @@ export default function Contact() {
               <div>
                 <h4 className="font-bold">Artisanal Inquiries</h4>
                 <p className="text-xs text-brand-text-secondary font-light">
-                  heritage@craftkalash.com
+                  craftkalash.store@gmail.com
                 </p>
               </div>
             </div>
@@ -99,7 +99,7 @@ export default function Contact() {
               <div>
                 <h4 className="font-bold">Phone Support</h4>
                 <p className="text-xs text-brand-text-secondary font-light">
-                  +91 (141) 235-9080 (Mon - Sat, 10am - 6pm IST)
+                  +91 9303436134 (Mon - Sat, 10am - 6pm IST)
                 </p>
               </div>
             </div>

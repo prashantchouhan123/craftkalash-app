@@ -273,7 +273,7 @@ export default function QuickViewModal({ product, onClose, onSwitchProduct }: Qu
           </div>
 
           {/* Right Side: Product Details & Tab Options Area */}
-          <div className="md:w-1/2 p-6 sm:p-8 flex flex-col justify-between overflow-y-auto max-h-[50vh] md:max-h-none">
+          <div className="md:w-1/2 p-6 sm:p-8 flex flex-col overflow-y-auto max-h-[60vh] md:max-h-[85vh]">
             
             {/* Upper basic detail */}
             <div className="space-y-3.5">
@@ -359,7 +359,7 @@ export default function QuickViewModal({ product, onClose, onSwitchProduct }: Qu
             </div>
 
             {/* TAB CONTENTS */}
-            <div className="py-5 flex-1 min-h-[140px]">
+            <div className="py-5 min-h-[140px]">
               <AnimatePresence mode="wait">
                 {activeTab === 'details' && (
                   <motion.div
