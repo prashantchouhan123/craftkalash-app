@@ -29,11 +29,12 @@ import {
   Check,
   Star,
   RefreshCw,
-  Minus
+  Minus,
+  Mail
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { addressService, couponsService } from '../services/supabaseService';
-import { Product, Category, Order, Coupon, Review, Profile } from '../types';
+import { addressService, couponsService, enquiriesService } from '../services/supabaseService';
+import { Product, Category, Order, Coupon, Review, Profile, ContactMessage } from '../types';
 import ImageUpload from '../components/ImageUpload';
 
 export default function Admin() {
@@ -46,6 +47,7 @@ export default function Admin() {
     deleteAdminProduct, 
     addAdminCategory,
     editAdminCategory,
+    deleteAdminCategory,
     updateOrderStatus, 
     updatePaymentStatus,
     changeRole,
@@ -57,7 +59,11 @@ export default function Admin() {
   const navigate = useNavigate();
 
   // Selected sidebar tab
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'categories' | 'orders' | 'customers' | 'coupons' | 'banners' | 'inventory' | 'settings' | 'reviews'>('dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'products' | 'categories' | 'orders' | 'customers' | 'coupons' | 'banners' | 'inventory' | 'settings' | 'reviews' | 'enquiries'>('dashboard');
+  const [enquiries, setEnquiries] = useState<ContactMessage[]>([]);
+  const [loadingEnquiries, setLoadingEnquiries] = useState(false);
+  const [enquirySearch, setEnquirySearch] = useState('');
+  const [enquiryFilter, setEnquiryFilter] = useState<'all' | 'unread' | 'read'>('all');
 
   // Selected expanded order ID
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
@@ -93,6 +99,7 @@ export default function Admin() {
   const [catName, setCatName] = useState('');
   const [catDescription, setCatDescription] = useState('');
   const [catImage, setCatImage] = useState('');
+  const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
 
   // Coupon state
   const [isCouponModalOpen, setIsCouponModalOpen] = useState(false);
@@ -166,6 +173,50 @@ export default function Admin() {
       });
     }
   }, [profile?.id, profile?.role]);
+
+  const fetchEnquiries = async () => {
+    setLoadingEnquiries(true);
+    try {
+      const data = await enquiriesService.getEnquiries();
+      setEnquiries(data || []);
+    } catch (e) {
+      console.error('Failed to load enquiries', e);
+    } finally {
+      setLoadingEnquiries(false);
+    }
+  };
+
+  useEffect(() => {
+    if (profile && profile.role === 'admin' && activeTab === 'enquiries') {
+      fetchEnquiries();
+    }
+  }, [profile?.id, profile?.role, activeTab]);
+
+  const handleMarkAsRead = async (id: string, isRead: boolean) => {
+    try {
+      const success = await enquiriesService.markAsRead(id, isRead);
+      if (success) {
+        setEnquiries(prev => prev.map(item => item.id === id ? { ...item, is_read: isRead } : item));
+        addToast(isRead ? 'Enquiry marked as read.' : 'Enquiry marked as unread.', 'success');
+      }
+    } catch (err) {
+      addToast('Failed to update enquiry status.', 'error');
+    }
+  };
+
+  const handleDeleteEnquiry = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this customer enquiry?')) return;
+    try {
+      const success = await enquiriesService.deleteEnquiry(id);
+      if (success) {
+        setEnquiries(prev => prev.filter(item => item.id !== id));
+        addToast('Enquiry deleted successfully.', 'success');
+      }
+    } catch (err) {
+      addToast('Failed to delete enquiry.', 'error');
+    }
+  };
+
 
   if (!profile || profile.role !== 'admin') {
     return (
@@ -375,6 +426,7 @@ export default function Admin() {
             { id: 'categories', label: 'Toy Categories', icon: Layers },
             { id: 'orders', label: 'Customer Orders', icon: ShoppingBag },
             { id: 'customers', label: 'Customers Registry', icon: Users },
+            { id: 'enquiries', label: 'Customer Enquiries', icon: Mail },
             { id: 'coupons', label: 'Coupons & Promos', icon: Ticket },
             { id: 'banners', label: 'Banners Curation', icon: ImageIcon },
             { id: 'inventory', label: 'Inventory Stock', icon: RefreshCw },
@@ -637,7 +689,14 @@ export default function Admin() {
                         <p className="text-[10px] text-brand-text-secondary leading-relaxed font-light line-clamp-2">{cat.description}</p>
                       </div>
 
-                      <div className="flex justify-end pt-2">
+                      <div className="flex justify-between items-center pt-2">
+                        <button
+                          onClick={() => setCategoryToDelete(cat)}
+                          className="text-[10px] text-brand-error font-bold flex items-center gap-1 cursor-pointer hover:underline animate-pulse"
+                        >
+                          <Trash2 className="w-3 h-3" /> Delete Category
+                        </button>
+
                         <button
                           onClick={() => {
                             setEditingCatId(cat.id);
@@ -703,6 +762,7 @@ export default function Admin() {
                       })
                       .map((o) => {
                         const isExpanded = expandedOrderId === o.id;
+                        const fallbackAddress = o.shippingAddress || (o.user_id ? orders.find(ord => ord.user_id === o.user_id && ord.shippingAddress)?.shippingAddress : null);
                         
                         // Parse display status
                         let statusText: string = o.payment_status;
@@ -780,12 +840,17 @@ export default function Admin() {
                                       <div>
                                         <h4 className="font-extrabold text-[10px] text-gray-400 uppercase tracking-wider mb-2">Delivery Address Details</h4>
                                         <div className="p-3 bg-white border border-brand-border/50 rounded-xl space-y-1 text-brand-text-primary">
-                                          {o.shippingAddress ? (
+                                          {fallbackAddress ? (
                                             <>
-                                              <div><strong>Contact:</strong> {o.shippingAddress.full_name} ({o.shippingAddress.phone || 'No Phone'})</div>
-                                              <div><strong>Address:</strong> {o.shippingAddress.address}</div>
-                                              <div><strong>Location:</strong> {o.shippingAddress.city}, {o.shippingAddress.state} - {o.shippingAddress.pincode}</div>
-                                              <div><strong>Country:</strong> {o.shippingAddress.country || 'India'}</div>
+                                              <div><strong>Contact:</strong> {fallbackAddress.full_name} ({fallbackAddress.phone || 'No Phone'})</div>
+                                              <div><strong>Address:</strong> {fallbackAddress.address}</div>
+                                              <div><strong>Location:</strong> {fallbackAddress.city}, {fallbackAddress.state} - {fallbackAddress.pincode}</div>
+                                              <div><strong>Country:</strong> {fallbackAddress.country || 'India'}</div>
+                                              {!o.shippingAddress && (
+                                                <div className="text-emerald-600 font-bold text-[10px] pt-1">
+                                                  ✓ Address recovered from user's history
+                                                </div>
+                                              )}
                                             </>
                                           ) : (
                                             <>
@@ -1246,6 +1311,192 @@ export default function Admin() {
             </motion.div>
           )}
 
+          {/* TAB: CUSTOMER ENQUIRIES */}
+          {activeTab === 'enquiries' && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
+              <div className="bg-white border border-brand-border/60 p-6 rounded-3xl shadow-xs space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-brand-border/40 pb-4">
+                  <div>
+                    <h3 className="text-base font-heading font-black flex items-center gap-2">
+                      <Mail className="w-5 h-5 text-brand-primary" />
+                      Customer Enquiries Inbox
+                    </h3>
+                    <p className="text-xs text-brand-text-secondary font-light">
+                      Track and moderate incoming submissions from the Contact form.
+                    </p>
+                  </div>
+                  <button
+                    onClick={fetchEnquiries}
+                    disabled={loadingEnquiries}
+                    className="self-start sm:self-center flex items-center gap-1.5 px-3 py-1.5 bg-brand-bg hover:bg-brand-bg/80 border border-brand-border rounded-xl text-[10px] font-bold text-brand-text-primary uppercase cursor-pointer disabled:opacity-50"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${loadingEnquiries ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </button>
+                </div>
+
+                {/* SEARCH AND FILTERS */}
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search by name, email, subject..."
+                      value={enquirySearch}
+                      onChange={(e) => setEnquirySearch(e.target.value)}
+                      className="w-full bg-[#FAF8F5]/40 border border-[#EBE5DB] rounded-xl pl-10 pr-4 py-2.5 text-xs focus:outline-none focus:border-brand-primary focus:bg-white text-brand-text-primary placeholder-gray-400 font-semibold"
+                    />
+                  </div>
+                  
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] uppercase font-bold text-gray-400 whitespace-nowrap">Filter:</span>
+                    <div className="flex bg-brand-bg border border-brand-border rounded-xl p-0.5">
+                      {(['all', 'unread', 'read'] as const).map((filterOpt) => (
+                        <button
+                          key={filterOpt}
+                          onClick={() => setEnquiryFilter(filterOpt)}
+                          className={`px-3 py-1.5 rounded-lg text-[9px] uppercase font-black tracking-wider transition-all cursor-pointer ${
+                            enquiryFilter === filterOpt
+                              ? 'bg-white text-brand-primary shadow-xs'
+                              : 'text-brand-text-secondary hover:text-brand-text-primary'
+                          }`}
+                        >
+                          {filterOpt}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* ENQUIRIES LISTING */}
+                {loadingEnquiries ? (
+                  <div className="py-20 flex flex-col items-center justify-center gap-3">
+                    <RefreshCw className="w-8 h-8 animate-spin text-brand-primary" />
+                    <p className="text-xs text-brand-text-secondary">Loading enquiries from database...</p>
+                  </div>
+                ) : (() => {
+                  const filtered = enquiries.filter(item => {
+                    const matchesSearch = 
+                      item.name.toLowerCase().includes(enquirySearch.toLowerCase()) ||
+                      item.email.toLowerCase().includes(enquirySearch.toLowerCase()) ||
+                      (item.subject && item.subject.toLowerCase().includes(enquirySearch.toLowerCase())) ||
+                      item.message.toLowerCase().includes(enquirySearch.toLowerCase());
+                    
+                    if (enquiryFilter === 'unread') return matchesSearch && !item.is_read;
+                    if (enquiryFilter === 'read') return matchesSearch && item.is_read;
+                    return matchesSearch;
+                  });
+
+                  if (filtered.length === 0) {
+                    return (
+                      <div className="border border-dashed border-brand-border/80 rounded-2xl p-12 text-center space-y-2">
+                        <Mail className="w-8 h-8 text-gray-300 mx-auto" />
+                        <h4 className="text-xs font-bold text-brand-text-primary uppercase tracking-wider">No Enquiries Found</h4>
+                        <p className="text-[10px] text-brand-text-secondary font-light max-w-sm mx-auto">
+                          There are no contact form submissions matching your filters.
+                        </p>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="space-y-4">
+                      {filtered.map((item) => (
+                        <div
+                          key={item.id}
+                          className={`border rounded-2xl p-4.5 transition-all bg-[#FAF8F5]/20 ${
+                            item.is_read
+                              ? 'border-brand-border/40 hover:border-brand-border/80'
+                              : 'border-amber-700/20 bg-amber-50/5 hover:border-amber-700/40 shadow-xs'
+                          }`}
+                        >
+                          {/* Top row */}
+                          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-3 pb-3 border-b border-brand-border/20">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-brand-text-primary text-xs">{item.name}</span>
+                                {!item.is_read && (
+                                  <span className="flex h-2 w-2 relative">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-primary opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-primary"></span>
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-brand-text-secondary">
+                                <span className="font-mono">{item.email}</span>
+                                {item.phone && (
+                                  <span className="font-mono border-l border-brand-border/60 pl-3">
+                                    Phone: {item.phone}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-2 self-start sm:self-center text-[10px]">
+                              <span className="text-gray-400 font-mono">
+                                {new Date(item.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Message core info */}
+                          <div className="space-y-2 mb-4">
+                            {item.subject && (
+                              <div className="text-[11px] font-bold text-brand-text-primary uppercase tracking-wide">
+                                <span className="text-[9px] text-brand-secondary font-black uppercase tracking-wider mr-1">Subject:</span>
+                                {item.subject}
+                              </div>
+                            )}
+                            <div className="bg-white/60 border border-brand-border/30 rounded-xl p-3.5 text-brand-text-primary leading-relaxed text-[11px] font-light whitespace-pre-wrap">
+                              {item.message}
+                            </div>
+                          </div>
+
+                          {/* Bottom Row Actions */}
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3.5 border-t border-brand-border/10 text-[10px]">
+                            {/* Metadata */}
+                            <div className="text-[9px] text-gray-400 font-mono">
+                              ID: {item.id} {item.ip_address && `• IP: ${item.ip_address}`}
+                            </div>
+
+                            {/* CTAs */}
+                            <div className="flex items-center gap-2 self-end sm:self-auto">
+                              <button
+                                onClick={() => handleMarkAsRead(item.id, !item.is_read)}
+                                className={`px-2.5 py-1.5 border rounded-lg font-bold uppercase transition-all cursor-pointer ${
+                                  item.is_read
+                                    ? 'bg-white border-brand-border hover:bg-brand-bg text-brand-text-primary'
+                                    : 'bg-brand-primary/5 border-brand-primary/20 hover:bg-brand-primary/10 text-brand-primary'
+                                }`}
+                              >
+                                {item.is_read ? 'Mark Unread' : 'Mark Read'}
+                              </button>
+
+                              <a
+                                href={`mailto:${item.email}?subject=Re: ${encodeURIComponent(item.subject || 'Enquiry with CraftKalash')}`}
+                                className="px-2.5 py-1.5 bg-brand-secondary hover:bg-brand-secondary/90 text-white rounded-lg font-bold uppercase transition-all shadow-xs text-center"
+                              >
+                                Reply via Email
+                              </a>
+
+                              <button
+                                onClick={() => handleDeleteEnquiry(item.id)}
+                                className="p-1.5 text-brand-error hover:bg-red-50 rounded-lg transition-all cursor-pointer border border-transparent hover:border-red-100"
+                                title="Delete Enquiry"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
+            </motion.div>
+          )}
+
         </div>
       </div>
 
@@ -1485,6 +1736,60 @@ export default function Admin() {
                   Save Category
                 </button>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* DELETE CATEGORY CONFIRMATION MODAL */}
+      <AnimatePresence>
+        {categoryToDelete && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.5 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setCategoryToDelete(null)}
+              className="absolute inset-0 bg-black cursor-pointer"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="bg-white rounded-3xl p-6 max-w-sm w-full border border-brand-border/60 shadow-2xl relative space-y-4 text-center"
+            >
+              <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center text-red-500 mx-auto">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+
+              <h3 className="text-sm font-heading font-black text-brand-text-primary uppercase tracking-wider">
+                Confirm Deletion
+              </h3>
+
+              <p className="text-xs text-brand-text-secondary leading-relaxed">
+                Are you sure you want to delete the category <span className="font-bold text-brand-text-primary">"{categoryToDelete.name}"</span>? This action cannot be undone and will hide it from the storefront.
+              </p>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setCategoryToDelete(null)}
+                  className="flex-1 bg-gray-100 text-brand-text-primary hover:bg-gray-200 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={async () => {
+                    const catId = categoryToDelete.id;
+                    setCategoryToDelete(null);
+                    await deleteAdminCategory(catId);
+                  }}
+                  className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-xl text-xs font-bold shadow-md shadow-red-200/50 transition-all cursor-pointer"
+                >
+                  Delete Now
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

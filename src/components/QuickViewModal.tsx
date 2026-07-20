@@ -19,7 +19,10 @@ import {
   HeartHandshake, 
   Smile,
   Truck,
-  RotateCcw
+  RotateCcw,
+  Baby,
+  Ruler,
+  Leaf
 } from 'lucide-react';
 
 interface QuickViewModalProps {
@@ -276,7 +279,7 @@ export default function QuickViewModal({ product, onClose, onSwitchProduct }: Qu
           <div className="md:w-1/2 p-6 sm:p-8 flex flex-col overflow-y-auto max-h-[60vh] md:max-h-[85vh]">
             
             {/* Upper basic detail */}
-            <div className="space-y-3.5">
+            <div className="space-y-3.5 flex-shrink-0">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] text-brand-text-secondary uppercase tracking-widest font-extrabold">
                   {product.category.replace('-', ' & ')}
@@ -332,7 +335,7 @@ export default function QuickViewModal({ product, onClose, onSwitchProduct }: Qu
             </div>
 
             {/* TAB CONTROLS */}
-            <div className="mt-6 border-b border-brand-border/60">
+            <div className="mt-6 border-b border-brand-border/60 flex-shrink-0">
               <div className="flex gap-6 -mb-px">
                 {[
                   { id: 'details', name: 'Toy Specs', icon: FileText },
@@ -359,7 +362,7 @@ export default function QuickViewModal({ product, onClose, onSwitchProduct }: Qu
             </div>
 
             {/* TAB CONTENTS */}
-            <div className="py-5 min-h-[140px]">
+            <div className="py-5 flex-shrink-0">
               <AnimatePresence mode="wait">
                 {activeTab === 'details' && (
                   <motion.div
@@ -367,31 +370,55 @@ export default function QuickViewModal({ product, onClose, onSwitchProduct }: Qu
                     initial={{ opacity: 0, y: 5 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -5 }}
-                    className="space-y-4 text-xs"
+                    className="space-y-5 text-xs"
                   >
-                    {/* Basic specs list */}
-                    <div className="grid grid-cols-2 gap-3 bg-brand-bg/40 p-3.5 rounded-2xl border border-brand-border/40 font-medium text-brand-text-primary">
-                      <div>
-                        <span className="block text-gray-400 text-[10px] uppercase font-bold mb-0.5">Suitable Age</span>
-                        <span className="font-bold">{product.ageRange}</span>
+                    {/* Basic specs premium grid list */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {/* Suitable Age Card */}
+                      <div className="bg-[#FCFBF9] border border-[#EBE5DB] rounded-2xl p-3.5 flex gap-3 items-start shadow-xs transition-colors hover:bg-white">
+                        <div className="w-8 h-8 rounded-xl bg-brand-primary/10 flex items-center justify-center text-brand-primary shrink-0">
+                          <Baby className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <span className="block text-[10px] uppercase tracking-wider text-gray-400 font-bold">Suitable Age</span>
+                          <span className="text-xs font-bold text-brand-text-primary mt-0.5 block">{product.ageRange}</span>
+                        </div>
                       </div>
-                      <div>
-                        <span className="block text-gray-400 text-[10px] uppercase font-bold mb-0.5">Dimensions</span>
-                        <span className="font-bold">{product.dimensions}</span>
+
+                      {/* Dimensions Card */}
+                      <div className="bg-[#FCFBF9] border border-[#EBE5DB] rounded-2xl p-3.5 flex gap-3 items-start shadow-xs transition-colors hover:bg-white">
+                        <div className="w-8 h-8 rounded-xl bg-brand-primary/10 flex items-center justify-center text-brand-primary shrink-0">
+                          <Ruler className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <span className="block text-[10px] uppercase tracking-wider text-gray-400 font-bold">Dimensions</span>
+                          <span className="text-xs font-bold text-brand-text-primary mt-0.5 block leading-normal">{product.dimensions}</span>
+                        </div>
                       </div>
-                      <div className="col-span-2 pt-2 border-t border-brand-border/30">
-                        <span className="block text-gray-400 text-[10px] uppercase font-bold mb-0.5">Sourcing Materials</span>
-                        <span className="font-bold">{product.materials.join(', ')}</span>
+
+                      {/* Materials Card */}
+                      <div className="col-span-1 sm:col-span-2 bg-[#FCFBF9] border border-[#EBE5DB] rounded-2xl p-3.5 flex gap-3 items-start shadow-xs transition-colors hover:bg-white">
+                        <div className="w-8 h-8 rounded-xl bg-brand-primary/10 flex items-center justify-center text-brand-primary shrink-0">
+                          <Leaf className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <span className="block text-[10px] uppercase tracking-wider text-gray-400 font-bold">Sourcing Materials</span>
+                          <span className="text-xs font-semibold text-brand-text-primary mt-0.5 block leading-relaxed">{product.materials.join(', ')}</span>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <h4 className="text-[10px] font-bold uppercase tracking-wider text-brand-text-primary">Key Features & Pedagogy</h4>
-                      <ul className="space-y-1.5 text-brand-text-secondary leading-relaxed font-light">
+                    {/* Key Features & Pedagogy block */}
+                    <div className="p-4 bg-[#FCFBF9] border border-[#EBE5DB]/70 rounded-2xl space-y-3 shadow-2xs">
+                      <h4 className="text-[11px] font-bold uppercase tracking-wider text-brand-primary flex items-center gap-1.5 border-b border-[#EBE5DB]/40 pb-2">
+                        <Sparkles className="w-3.5 h-3.5 text-brand-accent shrink-0" />
+                        Key Features & Pedagogy
+                      </h4>
+                      <ul className="space-y-2.5 text-[11px] text-brand-text-secondary leading-relaxed font-light">
                         {product.details.map((det, idx) => (
-                          <li key={idx} className="flex gap-2">
-                            <Check className="w-3.5 h-3.5 text-brand-success shrink-0 mt-0.5" />
-                            <span>{det}</span>
+                          <li key={idx} className="flex gap-2.5 items-start">
+                            <span className="w-1.5 h-1.5 rounded-full bg-brand-accent mt-1.5 shrink-0" />
+                            <span className="font-semibold text-brand-text-primary/95 leading-normal">{det}</span>
                           </li>
                         ))}
                       </ul>
@@ -561,7 +588,7 @@ export default function QuickViewModal({ product, onClose, onSwitchProduct }: Qu
 
             {/* RELATED PRODUCTS */}
             {relatedProducts.length > 0 && (
-              <div className="border-t border-brand-border/40 pt-4 mb-4">
+              <div className="border-t border-brand-border/40 pt-4 mb-4 flex-shrink-0">
                 <h4 className="text-[10px] font-bold uppercase tracking-wider text-brand-text-primary mb-2.5 flex items-center gap-1">
                   <Sparkles className="w-3.5 h-3.5 text-brand-primary animate-pulse" />
                   Related Heirloom Woodcrafts
@@ -588,7 +615,7 @@ export default function QuickViewModal({ product, onClose, onSwitchProduct }: Qu
 
             {/* Interactive Quantity Selection and Buy Controls */}
             {product.inStock ? (
-              <div className="space-y-4 pt-4 border-t border-brand-border/40 mt-auto">
+              <div className="space-y-4 pt-4 border-t border-brand-border/40 mt-auto flex-shrink-0">
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-bold uppercase tracking-wider text-brand-text-primary">

@@ -34,6 +34,7 @@ export default function Shop({ onQuickView }: ShopProps) {
   } = useShop();
 
   // Expanded Filter States
+  const [minPrice, setMinPrice] = useState<number>(0);
   const [maxPrice, setMaxPrice] = useState<number>(1000);
   const [selectedAgeGroups, setSelectedAgeGroups] = useState<string[]>([]);
   const [selectedMaterials, setSelectedMaterials] = useState<string[]>([]);
@@ -75,6 +76,7 @@ export default function Shop({ onQuickView }: ShopProps) {
   }, [
     selectedCategory,
     searchQuery,
+    minPrice,
     maxPrice,
     selectedAgeGroups.join(','),
     selectedMaterials.join(','),
@@ -108,6 +110,7 @@ export default function Shop({ onQuickView }: ShopProps) {
     setSearchQuery('');
     setSelectedCategory('all');
     setSortBy('featured');
+    setMinPrice(0);
     setMaxPrice(maxLimit);
     setSelectedAgeGroups([]);
     setSelectedMaterials([]);
@@ -144,15 +147,35 @@ export default function Shop({ onQuickView }: ShopProps) {
 
   // Filter products based on all filters
   const filteredProducts = products.filter((product) => {
-    const matchesCategory = selectedCategory === 'all' || 
-                            product.category === selectedCategory || 
-                            product.category_id === selectedCategory;
+    let matchesCategory = selectedCategory === 'all';
+    
+    if (!matchesCategory) {
+      const activeCategoryObj = categories.find(c => c.id === selectedCategory || c.slug === selectedCategory);
+      if (activeCategoryObj) {
+        const normalize = (str: string) => (str || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+        const normCatName = normalize(activeCategoryObj.name);
+        const normProdCat = normalize(product.category);
+        
+        matchesCategory = 
+          product.category === selectedCategory ||
+          product.category_id === selectedCategory ||
+          product.category_id === activeCategoryObj.id ||
+          product.category === activeCategoryObj.slug ||
+          normCatName === normProdCat ||
+          normProdCat.includes(normCatName) ||
+          normCatName.includes(normProdCat);
+      } else {
+        matchesCategory = 
+          product.category === selectedCategory || 
+          product.category_id === selectedCategory;
+      }
+    }
     
     const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           product.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           product.materials.some(m => m.toLowerCase().includes(searchQuery.toLowerCase()));
     
-    const matchesPrice = product.price <= maxPrice;
+    const matchesPrice = product.price >= minPrice && product.price <= maxPrice;
     
     const matchesStock = !onlyInStock || product.inStock;
     
@@ -210,31 +233,114 @@ export default function Shop({ onQuickView }: ShopProps) {
         )}
       </div>
 
-      {/* 1. Price Range Slider */}
-      <div className="space-y-3">
+      {/* 1. Professional Price Range Filter */}
+      <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-brand-text-primary">
-            Price Cap
+          <h3 className="text-xs font-black uppercase tracking-wider text-brand-text-primary">
+            Price Range
           </h3>
-          <span className="text-xs font-bold text-brand-primary bg-brand-primary/10 px-2 py-0.5 rounded-md">
-            Up to ₹{maxPrice}
-          </span>
+          {(minPrice > 0 || maxPrice < maxLimit) && (
+            <button
+              onClick={() => {
+                setMinPrice(0);
+                setMaxPrice(maxLimit);
+              }}
+              className="text-[10px] text-brand-primary font-bold hover:underline"
+            >
+              Clear
+            </button>
+          )}
         </div>
-        <div className="relative pt-1">
-          <input
-            type="range"
-            min="20"
-            max={maxLimit}
-            step="5"
-            value={maxPrice}
-            onChange={(e) => setMaxPrice(Number(e.target.value))}
-            className="w-full h-1.5 bg-brand-bg rounded-lg appearance-none cursor-pointer accent-brand-primary"
-          />
-          <div className="flex justify-between text-[10px] text-gray-400 font-bold mt-1">
-            <span>₹20</span>
-            <span>₹{Math.round(maxLimit * 0.33)}</span>
-            <span>₹{Math.round(maxLimit * 0.66)}</span>
-            <span>₹{maxLimit}</span>
+
+        {/* Dynamic Interactive Range Preset Chips */}
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            { label: 'Under ₹500', min: 0, max: 500 },
+            { label: '₹500 - ₹1000', min: 500, max: 1000 },
+            { label: '₹1000 - ₹2000', min: 1000, max: 2000 },
+            { label: '₹2000 & Above', min: 2000, max: maxLimit },
+          ].map((preset, idx) => {
+            const isSelected = minPrice === preset.min && maxPrice === preset.max;
+            return (
+              <button
+                key={idx}
+                type="button"
+                onClick={() => {
+                  setMinPrice(preset.min);
+                  setMaxPrice(preset.max);
+                }}
+                className={`px-2 py-2.5 rounded-xl text-[10px] font-bold text-center border transition-all cursor-pointer ${
+                  isSelected
+                    ? 'bg-brand-primary text-white border-brand-primary shadow-2xs'
+                    : 'bg-[#FCFBF9] border-[#EBE5DB] text-brand-text-secondary hover:bg-white hover:text-brand-text-primary'
+                }`}
+              >
+                {preset.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Min/Max Numeric Inputs with visual labels and custom border styling */}
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[10px] font-bold">₹</span>
+            <input
+              type="number"
+              min="0"
+              max={maxLimit}
+              placeholder="Min"
+              value={minPrice || ''}
+              onChange={(e) => {
+                const val = e.target.value === '' ? 0 : Number(e.target.value);
+                setMinPrice(val);
+              }}
+              className="w-full bg-[#FAF8F5]/60 border border-[#EBE5DB] rounded-xl pl-6 pr-6 py-2 text-[11px] font-bold text-brand-text-primary focus:outline-none focus:border-brand-primary focus:bg-white focus:ring-1 focus:ring-brand-primary/15 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
+            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[8px] font-black uppercase tracking-wider text-gray-400 select-none">Min</span>
+          </div>
+
+          <span className="text-gray-400 text-xs font-semibold">—</span>
+
+          <div className="relative flex-1">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-[10px] font-bold">₹</span>
+            <input
+              type="number"
+              min="0"
+              max={maxLimit}
+              placeholder="Max"
+              value={maxPrice === maxLimit ? '' : maxPrice}
+              onChange={(e) => {
+                const val = e.target.value === '' ? maxLimit : Number(e.target.value);
+                setMaxPrice(val);
+              }}
+              className="w-full bg-[#FAF8F5]/60 border border-[#EBE5DB] rounded-xl pl-6 pr-6 py-2 text-[11px] font-bold text-brand-text-primary focus:outline-none focus:border-brand-primary focus:bg-white focus:ring-1 focus:ring-brand-primary/15 transition-all [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+            />
+            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[8px] font-black uppercase tracking-wider text-gray-400 select-none">Max</span>
+          </div>
+        </div>
+
+        {/* Polished Slider for interactive cap control */}
+        <div className="space-y-1.5 pt-1">
+          <div className="flex justify-between text-[10px] text-brand-text-secondary font-bold">
+            <span>Selected Range:</span>
+            <span className="text-brand-primary">₹{minPrice} - ₹{maxPrice}</span>
+          </div>
+          <div className="relative pt-1 flex items-center">
+            <input
+              type="range"
+              min="0"
+              max={maxLimit}
+              step="10"
+              value={maxPrice}
+              onChange={(e) => {
+                const val = Number(e.target.value);
+                if (val >= minPrice) {
+                  setMaxPrice(val);
+                }
+              }}
+              className="w-full h-1.5 bg-[#FAF8F5] border border-[#EBE5DB]/50 rounded-lg appearance-none cursor-pointer accent-brand-primary"
+            />
           </div>
         </div>
       </div>
@@ -508,28 +614,14 @@ export default function Shop({ onQuickView }: ShopProps) {
         </div>
 
         {/* Sort selector & Mobile filter trigger */}
-        <div className="flex items-center gap-2 border-t lg:border-t-0 pt-3 lg:pt-0 border-brand-border/40">
+        <div className="flex items-center gap-2 border-t lg:border-t-0 pt-3 lg:pt-0 border-brand-border/40 lg:hidden">
           <button
             onClick={() => setIsMobileFilterOpen(true)}
-            className="lg:hidden flex items-center gap-1.5 px-3 py-2 border border-brand-border/60 rounded-xl bg-brand-bg/30 text-xs font-bold text-brand-text-primary hover:bg-brand-bg"
+            className="flex items-center gap-1.5 px-3 py-2 border border-brand-border/60 rounded-xl bg-brand-bg/30 text-xs font-bold text-brand-text-primary hover:bg-brand-bg"
           >
             <SlidersHorizontal className="w-3.5 h-3.5" />
-            Filters
+            Filters & Specifications
           </button>
-
-          <ArrowUpDown className="w-4 h-4 text-brand-text-secondary shrink-0 hidden sm:inline" />
-          <span className="text-xs font-semibold text-brand-text-secondary hidden sm:inline">Sort By</span>
-          <select
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            className="bg-brand-bg/40 border border-brand-border/60 rounded-xl px-3 py-2.5 text-xs text-brand-text-primary font-bold focus:outline-none focus:border-brand-primary cursor-pointer flex-1 sm:flex-none"
-          >
-            <option value="featured">Featured Match</option>
-            <option value="newest">Newest Arrival</option>
-            <option value="price-asc">Price: Low to High</option>
-            <option value="price-desc">Price: High to Low</option>
-            <option value="rating">Highest Rated</option>
-          </select>
         </div>
       </div>
 
@@ -574,12 +666,50 @@ export default function Shop({ onQuickView }: ShopProps) {
 
         {/* Right Side: Grid of Cards */}
         <div className="lg:col-span-9 space-y-6">
+          {/* PROFESSIONAL SORT TABS BAR (Flipkart/Amazon/E-Commerce Style) */}
+          <div className="bg-white border border-brand-border/50 rounded-2xl p-1 shadow-2xs flex items-center justify-between gap-4 overflow-x-auto scrollbar-none">
+            <div className="flex items-center gap-1 min-w-max">
+              <span className="text-[10px] font-black uppercase tracking-wider text-brand-text-secondary px-4 py-2 select-none">
+                Sort By:
+              </span>
+              {[
+                { value: 'featured', label: 'Popularity' },
+                { value: 'price-asc', label: 'Price -- Low to High' },
+                { value: 'price-desc', label: 'Price -- High to Low' },
+                { value: 'newest', label: 'Newest First' },
+                { value: 'rating', label: 'Highest Rated' },
+              ].map((option) => {
+                const isActive = sortBy === option.value;
+                return (
+                  <button
+                    key={option.value}
+                    onClick={() => setSortBy(option.value)}
+                    className={`relative px-4 py-2.5 text-xs font-bold transition-all rounded-xl cursor-pointer ${
+                      isActive
+                        ? 'text-brand-primary font-black bg-brand-primary/5'
+                        : 'text-brand-text-secondary hover:text-brand-text-primary hover:bg-brand-bg/50'
+                    }`}
+                  >
+                    {option.label}
+                    {isActive && (
+                      <motion.div
+                        layoutId="activeSortBarUnderline"
+                        className="absolute bottom-0 left-2 right-2 h-0.5 bg-brand-primary rounded-full"
+                        transition={{ type: 'spring', stiffness: 380, damping: 25 }}
+                      />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Active Filtering Stats */}
           <div className="flex items-center justify-between text-xs text-brand-text-secondary font-medium">
             <span>
               Showing <strong>{sortedProducts.length}</strong> of <strong>{products.length}</strong> heirloom toys
             </span>
-            {(searchQuery || selectedCategory !== 'all' || sortBy !== 'featured' || maxPrice < maxLimit || selectedAgeGroups.length > 0 || selectedMaterials.length > 0 || onlyInStock || minRating > 0) && (
+            {(searchQuery || selectedCategory !== 'all' || sortBy !== 'featured' || minPrice > 0 || maxPrice < maxLimit || selectedAgeGroups.length > 0 || selectedMaterials.length > 0 || onlyInStock || minRating > 0) && (
               <button
                 onClick={handleResetFilters}
                 className="text-brand-primary hover:text-brand-secondary font-bold flex items-center gap-1 cursor-pointer"

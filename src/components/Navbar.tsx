@@ -15,8 +15,11 @@ export default function Navbar() {
     setSearchQuery,
     setSelectedCategory,
     user,
-    profile
+    profile,
+    categories
   } = useShop();
+
+  const displayCategories = categories && categories.length > 0 ? categories : CATEGORIES;
 
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -145,7 +148,7 @@ export default function Navbar() {
                       <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 px-3 pb-2 border-b border-brand-border/40 mb-1">
                         Select Collection
                       </p>
-                      {CATEGORIES.map((cat) => (
+                      {displayCategories.map((cat) => (
                         <button
                           key={cat.id}
                           onClick={() => selectCategoryAndNavigate(cat.id)}
@@ -316,7 +319,7 @@ export default function Navbar() {
                   Explore Categories
                 </p>
                 <div className="flex flex-col gap-3">
-                  {CATEGORIES.map((cat) => (
+                  {displayCategories.map((cat) => (
                     <button
                       key={cat.id}
                       onClick={() => selectCategoryAndNavigate(cat.id)}

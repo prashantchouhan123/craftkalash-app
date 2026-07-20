@@ -358,9 +358,8 @@ export default function Checkout() {
       <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-6 mb-12 max-w-3xl mx-auto">
         {[
           { num: 1, label: 'Delivery Address', icon: MapPin },
-          { num: 2, label: 'Shipping Method', icon: Truck },
-          { num: 3, label: 'Secure Payment', icon: CreditCard },
-          { num: 4, label: 'Review & Order', icon: FileText }
+          { num: 2, label: 'Secure Payment', icon: CreditCard },
+          { num: 3, label: 'Review & Order', icon: FileText }
         ].map((step) => {
           const IconComponent = step.icon;
           const isActive = currentStep === step.num;
@@ -388,7 +387,7 @@ export default function Checkout() {
                   {step.label}
                 </span>
               </div>
-              {step.num < 4 && <ChevronRight className="w-4 h-4 text-gray-300 hidden sm:block" />}
+              {step.num < 3 && <ChevronRight className="w-4 h-4 text-gray-300 hidden sm:block" />}
             </React.Fragment>
           );
         })}
@@ -563,100 +562,18 @@ export default function Checkout() {
                   type="submit"
                   className="bg-brand-primary text-white text-xs font-bold py-3 px-6 rounded-xl flex items-center gap-1.5 hover:bg-brand-primary/95 shadow-sm cursor-pointer transition-all"
                 >
-                  Continue to Shipping
+                  Continue to Payment
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
             </form>
           )}
 
-          {/* STEP 2: SHIPPING METHODS */}
+          {/* STEP 2: PAYMENT METHODS */}
           {currentStep === 2 && (
             <div className="space-y-6">
               <div className="space-y-1">
-                <h2 className="text-xl font-heading font-black">2. Select Shipping & Care Service</h2>
-                <p className="text-xs text-brand-text-secondary font-light">Each order gets wrapped in biological tissue and shipped in thick recycled kraft boards.</p>
-              </div>
-
-              <div className="space-y-3.5 text-xs">
-                {[
-                  {
-                    id: 'standard',
-                    title: 'Standard Workshop Courier',
-                    price: subtotal >= 1500 ? 'FREE' : '₹99',
-                    desc: 'Delivery within 3 to 4 business days. Includes certified eco-friendly tissue padding.',
-                    days: '3-4 days'
-                  },
-                  {
-                    id: 'express',
-                    title: 'Express Hand-Oiled Priority Delivery',
-                    price: '₹199',
-                    desc: 'Shipped within 1 to 2 business days. Our builders execute an extra beeswax friction rub on timber logs immediately before boxing.',
-                    days: '1-2 days'
-                  },
-                  {
-                    id: 'premium',
-                    title: 'Premium Pine Crate Curation',
-                    price: '₹299',
-                    desc: 'Overnight delivery in a solid pine-wood mini drawer container. Includes a complementary 2oz cold-pressed beeswax sealant bar for ongoing parent care.',
-                    days: 'Overnight'
-                  }
-                ].map((tier) => (
-                  <button
-                    key={tier.id}
-                    onClick={() => setShippingMethod(tier.id as any)}
-                    className={`w-full p-4 rounded-2xl border-2 text-left flex items-start justify-between gap-4 transition-all ${
-                      shippingMethod === tier.id 
-                        ? 'border-brand-primary bg-brand-primary/5' 
-                        : 'border-brand-border hover:bg-brand-bg/40'
-                    }`}
-                  >
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className={`w-4.5 h-4.5 rounded-full border flex items-center justify-center shrink-0 ${
-                          shippingMethod === tier.id ? 'border-brand-primary text-brand-primary bg-white' : 'border-gray-300'
-                        }`}>
-                          {shippingMethod === tier.id && <div className="w-2 h-2 bg-brand-primary rounded-full" />}
-                        </span>
-                        <strong className="font-heading font-bold text-sm text-brand-text-primary">{tier.title}</strong>
-                      </div>
-                      <p className="text-brand-text-secondary font-light pl-6 leading-relaxed text-[11px]">{tier.desc}</p>
-                    </div>
-
-                    <div className="text-right shrink-0">
-                      <span className="block font-black text-brand-primary text-sm">{tier.price}</span>
-                      <span className="block text-[10px] text-gray-400 font-bold">{tier.days}</span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-
-              <div className="pt-6 border-t border-brand-border/40 flex justify-between">
-                <button
-                  type="button"
-                  onClick={() => setCurrentStep(1)}
-                  className="border border-brand-border text-brand-text-primary text-xs font-bold py-3 px-5 rounded-xl flex items-center gap-1.5 hover:bg-brand-bg transition-colors cursor-pointer"
-                >
-                  <ArrowLeft className="w-4 h-4" />
-                  Back
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCurrentStep(3)}
-                  className="bg-brand-primary text-white text-xs font-bold py-3 px-6 rounded-xl flex items-center gap-1.5 hover:bg-brand-primary/95 shadow-sm cursor-pointer transition-all"
-                >
-                  Continue to Payment
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 3: PAYMENT METHODS */}
-          {currentStep === 3 && (
-            <div className="space-y-6">
-              <div className="space-y-1">
-                <h2 className="text-xl font-heading font-black">3. Complete Secure Payment</h2>
+                <h2 className="text-xl font-heading font-black">2. Complete Secure Payment</h2>
                 <p className="text-xs text-brand-text-secondary font-light">Select your preferred payment option below. Fast, secure, and reliable transaction gateways.</p>
               </div>
 
@@ -752,7 +669,7 @@ export default function Checkout() {
               <div className="pt-6 border-t border-brand-border/40 flex justify-between">
                 <button
                   type="button"
-                  onClick={() => setCurrentStep(2)}
+                  onClick={() => setCurrentStep(1)}
                   className="border border-brand-border text-brand-text-primary text-xs font-bold py-3 px-5 rounded-xl flex items-center gap-1.5 hover:bg-brand-bg transition-colors cursor-pointer"
                 >
                   <ArrowLeft className="w-4 h-4" />
@@ -760,7 +677,7 @@ export default function Checkout() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setCurrentStep(4)}
+                  onClick={() => setCurrentStep(3)}
                   className="bg-brand-primary text-white text-xs font-bold py-3 px-6 rounded-xl flex items-center gap-1.5 hover:bg-brand-primary/95 shadow-sm cursor-pointer transition-all"
                 >
                   Continue to Review
@@ -770,11 +687,11 @@ export default function Checkout() {
             </div>
           )}
 
-          {/* STEP 4: REVIEW ORDER */}
-          {currentStep === 4 && (
+          {/* STEP 3: REVIEW ORDER */}
+          {currentStep === 3 && (
             <div className="space-y-6 text-xs">
               <div className="space-y-1">
-                <h2 className="text-xl font-heading font-black">4. Review & Execute Heirloom Order</h2>
+                <h2 className="text-xl font-heading font-black">3. Review & Execute Heirloom Order</h2>
                 <p className="text-xs text-brand-text-secondary font-light">Please verify your final workshop instructions and address destination.</p>
               </div>
 
@@ -851,7 +768,7 @@ export default function Checkout() {
                   
                   <div className="flex justify-between gap-4">
                     <button
-                      onClick={() => setCurrentStep(3)}
+                      onClick={() => setCurrentStep(2)}
                       className="border border-brand-border text-brand-text-primary text-xs font-bold py-3.5 px-6 rounded-xl flex items-center gap-1 hover:bg-brand-bg transition-colors cursor-pointer"
                     >
                       <ArrowLeft className="w-4 h-4" />
@@ -902,7 +819,7 @@ export default function Checkout() {
               <span>₹{subtotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-brand-text-secondary">
-              <span>Shipping cost ({shippingMethod})</span>
+              <span>Shipping cost</span>
               <span>{shippingCost === 0 ? 'FREE' : `₹${shippingCost.toFixed(2)}`}</span>
             </div>
             <div className="flex justify-between font-black text-brand-text-primary text-sm pt-2 border-t border-brand-border/30">

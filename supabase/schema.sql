@@ -672,3 +672,38 @@ on conflict (slug) do update set
   "hoverImage" = excluded."hoverImage",
   stock = excluded.stock,
   "inStock" = excluded."inStock";
+
+
+-- ==========================================
+-- 14. CONTACT MESSAGES TABLE
+-- ==========================================
+create table if not exists public.contact_messages (
+  id uuid default uuid_generate_v4() primary key,
+  name text not null,
+  email text not null,
+  phone text,
+  subject text,
+  message text not null,
+  ip_address text,
+  is_read boolean not null default false,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
+-- Enable RLS
+alter table public.contact_messages enable row level security;
+
+-- Policies for public insertion and admin read/update
+create policy "Allow anyone to insert contact messages" on public.contact_messages
+  for insert with check (true);
+
+create policy "Allow admin full access to contact messages" on public.contact_messages
+  for all using (
+    exists (
+      select 1 from public.profiles
+      where profiles.id = auth.uid() and profiles.role = 'admin'
+    )
+  );
+
+-- Performance index
+create index if not exists idx_contact_messages_created_at on public.contact_messages(created_at);
+

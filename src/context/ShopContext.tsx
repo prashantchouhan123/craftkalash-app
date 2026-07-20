@@ -8,7 +8,8 @@ import {
   orderService, 
   addressService, 
   cartService, 
-  isSupabaseConfigured 
+  isSupabaseConfigured,
+  isAdminEmail
 } from '../services/supabaseService';
 
 interface ShopContextType {
@@ -16,8 +17,8 @@ interface ShopContextType {
   user: any;
   profile: Profile | null;
   isAdmin: boolean;
-  register: (fullName: string, email: string, phone: string, password: string) => Promise<boolean>;
-  login: (email: string, password: string) => Promise<boolean>;
+  register: (fullName: string, email: string, phone: string, password: string) => Promise<{ success: boolean; needsVerification?: boolean; error?: string }>;
+  login: (email: string, password: string) => Promise<{ success: boolean; isNotVerified?: boolean; error?: string }>;
   logout: () => Promise<void>;
   updateProfile: (updates: Partial<Profile>) => Promise<boolean>;
   changeRole: (role: 'customer' | 'admin') => Promise<void>;
@@ -82,6 +83,7 @@ interface ShopContextType {
   deleteAdminProduct: (id: string) => Promise<boolean>;
   addAdminCategory: (cat: Partial<Category>) => Promise<boolean>;
   editAdminCategory: (id: string, updates: Partial<Category>) => Promise<boolean>;
+  deleteAdminCategory: (id: string) => Promise<boolean>;
   isSupabaseConfigured: boolean;
 }
 
@@ -147,11 +149,17 @@ export function ShopProvider({ children }: { children: React.ReactNode }) {
       try {
         const activeUser = await authService.getCurrentUser();
         if (activeUser) {
+          if (!activeUser.email_confirmed_at) {
+            await authService.logout();
+            setUser(null);
+            setProfile(null);
+            return;
+          }
           setUser(activeUser);
           const activeProfile = await authService.getProfile(activeUser.id);
           if (activeProfile) {
-            // Safe fallback and auto-sync for admin@craftkalash.com
-            if (activeUser.email?.toLowerCase() === 'admin@craftkalash.com') {
+            // Safe fallback and auto-sync for admin emails
+            if (isAdminEmail(activeUser.email)) {
               activeProfile.role = 'admin';
             }
             setProfile(activeProfile);
@@ -212,25 +220,36 @@ export function ShopProvider({ children }: { children: React.ReactNode }) {
     const res = await authService.register(fullName, email, phone, password);
     if (res.error) {
       addToast(res.error, 'error');
-      return false;
+      return { success: false, error: res.error };
     }
-    if (res.user && res.user.email?.toLowerCase() === 'admin@craftkalash.com' && res.profile) {
+    
+    if (res.needsVerification) {
+      addToast('Please verify your email address. A verification link has been sent.', 'info');
+      return { success: true, needsVerification: true };
+    }
+
+    if (res.user && isAdminEmail(res.user.email) && res.profile) {
       res.profile.role = 'admin';
     }
     setUser(res.user);
     setProfile(res.profile);
     setIsAdmin(res.profile?.role === 'admin');
     addToast('Account created successfully! Welcome to CraftKalash.', 'success');
-    return true;
+    return { success: true };
   };
 
   const login = async (email: string, password: string) => {
     const res = await authService.login(email, password);
     if (res.error) {
+      if (res.isNotVerified) {
+        addToast(res.error, 'error');
+        return { success: false, error: res.error, isNotVerified: true };
+      }
       addToast(res.error, 'error');
-      return false;
+      return { success: false, error: res.error };
     }
-    if (res.user && res.user.email?.toLowerCase() === 'admin@craftkalash.com' && res.profile) {
+
+    if (res.user && isAdminEmail(res.user.email) && res.profile) {
       res.profile.role = 'admin';
     }
     setUser(res.user);
@@ -252,7 +271,7 @@ export function ShopProvider({ children }: { children: React.ReactNode }) {
     }
     
     addToast('Logged in successfully.', 'success');
-    return true;
+    return { success: true };
   };
 
   const logout = async () => {
@@ -549,6 +568,19 @@ export function ShopProvider({ children }: { children: React.ReactNode }) {
     return true;
   };
 
+  const deleteAdminCategory = async (id: string): Promise<boolean> => {
+    const res = await categoryService.deleteCategory(id);
+    if (res.error) {
+      addToast(res.error, 'error');
+      return false;
+    }
+    // Refresh Categories
+    const updated = await categoryService.getCategories();
+    setCategories(updated);
+    addToast('Heirloom category successfully deleted.', 'info');
+    return true;
+  };
+
   return (
     <ShopContext.Provider
       value={{
@@ -602,6 +634,7 @@ export function ShopProvider({ children }: { children: React.ReactNode }) {
         deleteAdminProduct,
         addAdminCategory,
         editAdminCategory,
+        deleteAdminCategory,
         isSupabaseConfigured
       }}
     >

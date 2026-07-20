@@ -10,16 +10,40 @@ interface FaqItem {
 
 export default function Contact() {
   const { addToast } = useShop();
-  const [formData, setFormData] = useState({ name: '', email: '', subject: '', message: '' });
+  const [formData, setFormData] = useState({ name: '', email: '', phone: '', subject: '', message: '' });
   const [activeFaq, setActiveFaq] = useState<number | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.name && formData.email && formData.message) {
-      addToast(`Thank you, ${formData.name}. Our master artisans will reply within 24 hours.`, 'success');
-      setFormData({ name: '', email: '', subject: '', message: '' });
-    } else {
+    if (!formData.name || !formData.email || !formData.message) {
       addToast('Please fill out all required fields.', 'error');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to submit enquiry.');
+      }
+
+      addToast('Thank you! Your message has been sent successfully.', 'success');
+      setFormData({ name: '', email: '', phone: '', subject: '', message: '' });
+    } catch (error: any) {
+      console.error('[Contact Form Error]:', error);
+      addToast(error.message || 'There was a problem sending your message. Please try again.', 'error');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -58,47 +82,47 @@ export default function Contact() {
       {/* Grid: Contact Information & Form */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
         {/* Left: Info details */}
-        <div className="lg:col-span-5 space-y-8 bg-white border border-brand-border/60 p-8 rounded-3xl shadow-xs">
+        <div className="lg:col-span-5 space-y-8 bg-white border border-[#EBE5DB] p-8 rounded-3xl shadow-sm">
           <h2 className="text-lg font-bold text-brand-text-primary tracking-tight">
             CraftKalash Showrooms
           </h2>
           
-          <p className="text-xs text-brand-text-secondary leading-relaxed font-light">
+          <p className="text-xs text-brand-text-secondary leading-relaxed font-normal">
             Drop by our physical slow-parenting play showrooms to experience the smooth tactile weight of maple and walnut first-hand.
           </p>
 
           <div className="space-y-6 text-sm text-brand-text-primary font-medium">
             <div className="flex gap-4 items-start">
-              <div className="w-10 h-10 rounded-xl bg-brand-bg flex items-center justify-center text-brand-primary shrink-0 border border-brand-border/40">
-                <MapPin className="w-5 h-5" />
+              <div className="w-10 h-10 rounded-xl bg-[#FCFBF9] flex items-center justify-center text-brand-primary shrink-0 border border-[#EBE5DB]">
+                <MapPin className="w-5 h-5 text-brand-primary" />
               </div>
               <div>
-                <h4 className="font-bold">Workshop &amp; Registered Address</h4>
-                <p className="text-xs text-brand-text-secondary font-light">
+                <h4 className="font-bold text-xs text-brand-text-primary">Workshop &amp; Registered Address</h4>
+                <p className="text-[11px] text-brand-text-secondary font-medium mt-0.5 leading-relaxed">
                   C/O: Vinay Panchal, ward no 10 budnighat, Budni, Sehore, Madhya Pradesh - 466445
                 </p>
               </div>
             </div>
 
             <div className="flex gap-4 items-start">
-              <div className="w-10 h-10 rounded-xl bg-brand-bg flex items-center justify-center text-brand-primary shrink-0 border border-brand-border/40">
-                <Mail className="w-5 h-5" />
+              <div className="w-10 h-10 rounded-xl bg-[#FCFBF9] flex items-center justify-center text-brand-primary shrink-0 border border-[#EBE5DB]">
+                <Mail className="w-5 h-5 text-brand-primary" />
               </div>
               <div>
-                <h4 className="font-bold">Artisanal Inquiries</h4>
-                <p className="text-xs text-brand-text-secondary font-light">
+                <h4 className="font-bold text-xs text-brand-text-primary">Artisanal Inquiries</h4>
+                <p className="text-[11px] text-brand-text-secondary font-medium mt-0.5 leading-relaxed">
                   craftkalash.store@gmail.com
                 </p>
               </div>
             </div>
 
             <div className="flex gap-4 items-start">
-              <div className="w-10 h-10 rounded-xl bg-brand-bg flex items-center justify-center text-brand-primary shrink-0 border border-brand-border/40">
-                <Phone className="w-5 h-5" />
+              <div className="w-10 h-10 rounded-xl bg-[#FCFBF9] flex items-center justify-center text-brand-primary shrink-0 border border-[#EBE5DB]">
+                <Phone className="w-5 h-5 text-brand-primary" />
               </div>
               <div>
-                <h4 className="font-bold">Phone Support</h4>
-                <p className="text-xs text-brand-text-secondary font-light">
+                <h4 className="font-bold text-xs text-brand-text-primary">Phone Support</h4>
+                <p className="text-[11px] text-brand-text-secondary font-medium mt-0.5 leading-relaxed">
                   +91 9303436134 (Mon - Sat, 10am - 6pm IST)
                 </p>
               </div>
@@ -107,7 +131,7 @@ export default function Contact() {
         </div>
 
         {/* Right: Contact Form */}
-        <div className="lg:col-span-7 bg-white border border-brand-border/60 p-8 rounded-3xl shadow-xs">
+        <div className="lg:col-span-7 bg-white border border-[#EBE5DB] p-8 rounded-3xl shadow-sm">
           <h2 className="text-lg font-bold text-brand-text-primary tracking-tight mb-6">
             Send Us a Message
           </h2>
@@ -115,66 +139,82 @@ export default function Contact() {
           <form onSubmit={handleFormSubmit} className="space-y-5">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-brand-text-primary uppercase tracking-wider">
+                <label className="text-[10px] font-bold text-brand-text-primary uppercase tracking-wider">
                   Your Name *
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Liam"
+                  placeholder="Enter your full name"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full bg-brand-bg/40 border border-brand-border/60 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-brand-primary text-brand-text-primary font-medium"
+                  className="w-full bg-[#FAF8F5]/50 border border-[#EBE5DB] rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-brand-primary focus:bg-white focus:ring-1 focus:ring-brand-primary/10 text-brand-text-primary font-semibold placeholder-gray-400 transition-all"
                 />
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-brand-text-primary uppercase tracking-wider">
+                <label className="text-[10px] font-bold text-brand-text-primary uppercase tracking-wider">
                   Email Address *
                 </label>
                 <input
                   type="email"
                   required
-                  placeholder="e.g. liam@example.com"
+                  placeholder="Enter your email address"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="w-full bg-brand-bg/40 border border-brand-border/60 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-brand-primary text-brand-text-primary font-medium"
+                  className="w-full bg-[#FAF8F5]/50 border border-[#EBE5DB] rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-brand-primary focus:bg-white focus:ring-1 focus:ring-brand-primary/10 text-brand-text-primary font-semibold placeholder-gray-400 transition-all"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-brand-text-primary uppercase tracking-wider">
+                  Phone Number
+                </label>
+                <input
+                  type="tel"
+                  placeholder="Enter your phone number (optional)"
+                  value={formData.phone}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  className="w-full bg-[#FAF8F5]/50 border border-[#EBE5DB] rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-brand-primary focus:bg-white focus:ring-1 focus:ring-brand-primary/10 text-brand-text-primary font-semibold placeholder-gray-400 transition-all"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-bold text-brand-text-primary uppercase tracking-wider">
+                  Subject
+                </label>
+                <input
+                  type="text"
+                  placeholder="How can we help you?"
+                  value={formData.subject}
+                  onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+                  className="w-full bg-[#FAF8F5]/50 border border-[#EBE5DB] rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-brand-primary focus:bg-white focus:ring-1 focus:ring-brand-primary/10 text-brand-text-primary font-semibold placeholder-gray-400 transition-all"
                 />
               </div>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-xs font-bold text-brand-text-primary uppercase tracking-wider">
-                Subject
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. Custom Nursery Wooden Play Set inquiry"
-                value={formData.subject}
-                onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-                className="w-full bg-brand-bg/40 border border-brand-border/60 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-brand-primary text-brand-text-primary font-medium"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-brand-text-primary uppercase tracking-wider">
+              <label className="text-[10px] font-bold text-brand-text-primary uppercase tracking-wider">
                 Your Message *
               </label>
               <textarea
                 required
                 rows={5}
-                placeholder="Write your comments, questions or support requests..."
+                placeholder="Type your message or inquiry here..."
                 value={formData.message}
                 onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                className="w-full bg-brand-bg/40 border border-brand-border/60 rounded-xl px-4 py-2.5 text-xs focus:outline-none focus:border-brand-primary text-brand-text-primary font-medium resize-none"
+                className="w-full bg-[#FAF8F5]/50 border border-[#EBE5DB] rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-brand-primary focus:bg-white focus:ring-1 focus:ring-brand-primary/10 text-brand-text-primary font-semibold placeholder-gray-400 resize-none transition-all"
               />
             </div>
 
             <button
               type="submit"
-              className="w-full bg-brand-primary text-white py-3 rounded-xl text-xs font-bold tracking-wide hover:bg-brand-primary/95 shadow-sm transition-all cursor-pointer"
+              disabled={isSubmitting}
+              className="w-full bg-brand-primary text-white py-3.5 rounded-xl text-xs font-bold tracking-wide hover:bg-brand-primary/95 shadow-md shadow-brand-primary/10 transition-all cursor-pointer active:scale-99 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Submit Message
+              {isSubmitting ? 'Sending Message...' : 'Submit Message'}
             </button>
           </form>
         </div>

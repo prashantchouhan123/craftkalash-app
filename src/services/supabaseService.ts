@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { Product, Category, Review, Profile, Address, Order, OrderItem, Coupon, CartItem } from '../types';
+import { Product, Category, Review, Profile, Address, Order, OrderItem, Coupon, CartItem, ContactMessage } from '../types';
 import { PRODUCTS, CATEGORIES, REVIEWS } from '../data/products';
 
 export { isSupabaseConfigured };
@@ -8,6 +8,13 @@ export { isSupabaseConfigured };
 export const isUUID = (str: any): boolean => {
   if (typeof str !== 'string') return false;
   return /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(str);
+};
+
+// Helper to check if an email belongs to an administrator
+export const isAdminEmail = (email?: string): boolean => {
+  if (!email) return false;
+  const e = email.toLowerCase();
+  return e === 'admin@craftkalash.com' || e === 'chouhanmamta2888@gmail.com';
 };
 
 // Guard function to ensure Supabase is configured
@@ -24,23 +31,53 @@ const ensureConfigured = () => {
 export const authService = {
   isConfigured: () => isSupabaseConfigured,
 
-  async register(fullName: string, email: string, phone: string, password: string): Promise<{ user: any; profile: Profile | null; error: string | null }> {
+  async register(fullName: string, email: string, phone: string, password: string): Promise<{ user: any; profile: Profile | null; error: string | null; needsVerification?: boolean }> {
     ensureConfigured();
     try {
+      const targetRedirectUrl = `${window.location.origin}/auth`;
+      console.log('[Supabase Auth] Initiating registration for email:', email);
+      console.log('[Supabase Auth] Computed emailRedirectTo URL:', targetRedirectUrl);
+      console.log('[Supabase Auth] REQUIRED SETUP CHECK: Ensure that this exact URL (or matching wildcards like http://localhost:3000/** or https://*.vercel.app/**) is added to your Supabase Project "Redirect URLs" under Authentication -> URL Configuration. Also verify that the Site URL matches your production domain.');
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
+          emailRedirectTo: targetRedirectUrl,
           data: {
             full_name: fullName,
             phone: phone
           }
         }
       });
-      if (error) throw error;
       
+      if (error) {
+        console.error('[Supabase Auth ERROR during sign-up]:', error);
+        console.error('[Supabase Auth ERROR Code]:', error.status || 'unknown');
+        console.error('[Supabase Auth ERROR Message]:', error.message);
+        
+        // Troubleshooting diagnostic feedback for common Supabase email delivery issues
+        if (error.message?.toLowerCase().includes('rate limit') || error.status === 429) {
+          console.error('[Supabase Auth Diagnostician]: You have hit Supabase\'s default built-in SMTP rate limit of 3 emails/hour. To resolve this and enable unrestricted email delivery, please configure a custom SMTP service (SendGrid, Resend, Mailgun, Postmark, AWS SES, etc.) under Authentication -> Providers -> Email -> SMTP Settings in your Supabase Project Dashboard.');
+        } else if (error.message?.toLowerCase().includes('smtp') || error.message?.toLowerCase().includes('mail') || error.message?.toLowerCase().includes('deliver')) {
+          console.error('[Supabase Auth Diagnostician]: There is an active SMTP configuration error in your Supabase settings. Please verify your custom SMTP host, port, authentication credentials, and sender email under Authentication -> Providers -> Email -> SMTP Settings in your Supabase Dashboard.');
+        } else {
+          console.error('[Supabase Auth Diagnostician]: Please verify that "Confirm email" is ENABLED under Authentication -> Providers -> Email -> "Confirm email" in the Supabase Dashboard, and that your email provider credentials are fully active.');
+        }
+        throw error;
+      }
+      
+      console.log('[Supabase Auth] Registration call successful. Returned data:', {
+        userId: data.user?.id,
+        userEmail: data.user?.email,
+        emailConfirmedAt: data.user?.email_confirmed_at,
+        sessionExists: Boolean(data.session)
+      });
+
       let profile: Profile | null = null;
-      if (data.user) {
+      const sessionActive = data.session !== null;
+      
+      if (data.user && sessionActive) {
         const { data: profData, error: profErr } = await supabase
           .from('profiles')
           .select('*')
@@ -51,17 +88,59 @@ export const authService = {
         }
       }
 
-      return { user: data.user, profile, error: null };
+      const needsVerification = !sessionActive || !data.user?.email_confirmed_at;
+      if (needsVerification) {
+        console.log('[Supabase Auth] User needs verification. A confirmation email was requested to be sent from Supabase with redirect URL:', targetRedirectUrl);
+      } else {
+        console.log('[Supabase Auth] No verification needed or user already verified immediately.');
+      }
+
+      return { user: data.user, profile, error: null, needsVerification };
     } catch (err: any) {
+      console.error('[Supabase Auth] Caught unexpected exception in authService.register:', err);
       return { user: null, profile: null, error: err.message || 'Signup failed' };
     }
   },
 
-  async login(email: string, password: string): Promise<{ user: any; profile: Profile | null; error: string | null }> {
+  async login(email: string, password: string): Promise<{ user: any; profile: Profile | null; error: string | null; isNotVerified?: boolean }> {
     ensureConfigured();
     try {
+      console.log('[Supabase Auth] Attempting sign-in for email:', email);
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
+      
+      if (error) {
+        console.error('[Supabase Auth ERROR during login]:', error);
+        console.error('[Supabase Auth ERROR Code]:', error.status || 'unknown');
+        console.error('[Supabase Auth ERROR Message]:', error.message);
+
+        const isUnconfirmed = error.message.toLowerCase().includes('confirm') || 
+                              error.message.toLowerCase().includes('verify') ||
+                              (error.status === 400 && error.message.toLowerCase().includes('not confirmed'));
+        
+        if (isUnconfirmed) {
+          console.warn('[Supabase Auth WARNING]: Sign-in failed because the user email has not been verified yet.');
+          return { 
+            user: null, 
+            profile: null, 
+            error: 'Please verify your email before logging in.', 
+            isNotVerified: true 
+          };
+        }
+        throw error;
+      }
+
+      if (data.user && !data.user.email_confirmed_at) {
+        console.warn('[Supabase Auth WARNING]: Signed-in user lacks an email confirmation timestamp. Logging out and enforcing verification screen.');
+        await supabase.auth.signOut();
+        return { 
+          user: null, 
+          profile: null, 
+          error: 'Please verify your email before logging in.', 
+          isNotVerified: true 
+        };
+      }
+
+      console.log('[Supabase Auth] Login successful. User ID:', data.user?.id);
 
       let profile: Profile | null = null;
       if (data.user) {
@@ -70,11 +149,15 @@ export const authService = {
           .select('*')
           .eq('id', data.user.id)
           .single();
-        if (profErr) throw profErr;
+        if (profErr) {
+          console.error('[Supabase Auth ERROR loading profile]:', profErr);
+          throw profErr;
+        }
         profile = profData;
 
-        // Auto-upgrade admin@craftkalash.com to admin role in database
-        if (email.toLowerCase() === 'admin@craftkalash.com' && profile && profile.role !== 'admin') {
+        // Auto-upgrade admin emails to admin role in database
+        if (isAdminEmail(email) && profile && profile.role !== 'admin') {
+          console.log('[Supabase Auth] Auto-upgrading admin email to admin role:', email);
           const { data: updatedProf } = await supabase
             .from('profiles')
             .update({ role: 'admin' })
@@ -89,7 +172,17 @@ export const authService = {
 
       return { user: data.user, profile, error: null };
     } catch (err: any) {
-      return { user: null, profile: null, error: err.message || 'Login failed' };
+      console.error('[Supabase Auth] Caught unexpected exception in authService.login:', err);
+      const errMsg = err.message || 'Login failed';
+      const isUnconfirmed = errMsg.toLowerCase().includes('confirm') || 
+                            errMsg.toLowerCase().includes('verify');
+      
+      return { 
+        user: null, 
+        profile: null, 
+        error: isUnconfirmed ? 'Please verify your email before logging in.' : errMsg, 
+        isNotVerified: isUnconfirmed 
+      };
     }
   },
 
@@ -117,7 +210,7 @@ export const authService = {
 
     if (data && data.role !== 'admin') {
       const { data: userData } = await supabase.auth.getUser();
-      if (userData?.user?.email?.toLowerCase() === 'admin@craftkalash.com') {
+      if (userData?.user?.email && isAdminEmail(userData.user.email)) {
         const { data: updatedData } = await supabase
           .from('profiles')
           .update({ role: 'admin' })
@@ -170,6 +263,46 @@ export const authService = {
     ensureConfigured();
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     return { success: !error, error: error ? error.message : null };
+  },
+
+  async resendVerificationEmail(email: string): Promise<{ success: boolean; error: string | null }> {
+    ensureConfigured();
+    try {
+      const targetRedirectUrl = `${window.location.origin}/auth`;
+      console.log('[Supabase Auth] Initiating verification email resend for email:', email);
+      console.log('[Supabase Auth] Computed emailRedirectTo URL:', targetRedirectUrl);
+      console.log('[Supabase Auth] REQUIRED SETUP CHECK: Ensure that this exact URL (or matching wildcards like http://localhost:3000/** or https://*.vercel.app/**) is added to your Supabase Project "Redirect URLs" under Authentication -> URL Configuration. Also verify that the Site URL matches your production domain.');
+
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+        options: {
+          emailRedirectTo: targetRedirectUrl,
+        },
+      });
+
+      if (error) {
+        console.error('[Supabase Auth ERROR during resend]:', error);
+        console.error('[Supabase Auth ERROR Code]:', error.status || 'unknown');
+        console.error('[Supabase Auth ERROR Message]:', error.message);
+        
+        // Troubleshooting diagnostic feedback for common Supabase email delivery issues
+        if (error.message?.toLowerCase().includes('rate limit') || error.status === 429) {
+          console.error('[Supabase Auth Diagnostician]: You have hit Supabase\'s default built-in SMTP rate limit of 3 emails/hour. To resolve this and enable unrestricted email delivery, please configure a custom SMTP service (SendGrid, Resend, Mailgun, Postmark, AWS SES, etc.) under Authentication -> Providers -> Email -> SMTP Settings in your Supabase Project Dashboard.');
+        } else if (error.message?.toLowerCase().includes('smtp') || error.message?.toLowerCase().includes('mail') || error.message?.toLowerCase().includes('deliver')) {
+          console.error('[Supabase Auth Diagnostician]: There is an active SMTP configuration error in your Supabase settings. Please verify your custom SMTP host, port, authentication credentials, and sender email under Authentication -> Providers -> Email -> SMTP Settings in your Supabase Dashboard.');
+        } else {
+          console.error('[Supabase Auth Diagnostician]: Please verify that "Confirm email" is ENABLED under Authentication -> Providers -> Email -> "Confirm email" in the Supabase Dashboard, and that your email provider credentials are fully active.');
+        }
+        return { success: false, error: error.message };
+      }
+
+      console.log('[Supabase Auth] Verification email resend call returned success.');
+      return { success: true, error: null };
+    } catch (err: any) {
+      console.error('[Supabase Auth] Caught unexpected exception in authService.resendVerificationEmail:', err);
+      return { success: false, error: err.message || 'Failed to resend verification email.' };
+    }
   }
 };
 
@@ -534,6 +667,15 @@ const getLocalUpdatedCategories = (): Record<string, Partial<Category>> => {
   }
 };
 
+const getLocalDeletedCategories = (): string[] => {
+  try {
+    const stored = localStorage.getItem('craftkalash_deleted_categories');
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+};
+
 export const categoryService = {
   async getCategories(): Promise<Category[]> {
     let baseList: Category[] = [];
@@ -552,6 +694,7 @@ export const categoryService = {
     // Merge with local offline/mock storage states
     const localAdded = getLocalAddedCategories();
     const localUpdated = getLocalUpdatedCategories();
+    const localDeleted = getLocalDeletedCategories();
 
     let mergedList = [...baseList];
 
@@ -572,6 +715,9 @@ export const categoryService = {
       }
       return c;
     });
+
+    // 3. Filter out deleted categories
+    mergedList = mergedList.filter(c => !localDeleted.includes(c.id));
 
     return mergedList;
   },
@@ -628,6 +774,38 @@ export const categoryService = {
       localStorage.setItem('craftkalash_updated_categories', JSON.stringify(localUpdated));
 
       return { data: null, error: null };
+    }
+  },
+
+  async deleteCategory(id: string): Promise<{ success: boolean; error: string | null }> {
+    try {
+      ensureConfigured();
+      const { error } = await supabase
+        .from('categories')
+        .delete()
+        .eq('id', id);
+      if (error) throw error;
+      return { success: true, error: null };
+    } catch (err: any) {
+      console.warn('Database deleteCategory failed, falling back to local action:', err);
+
+      const localDeleted = getLocalDeletedCategories();
+      if (!localDeleted.includes(id)) {
+        localDeleted.push(id);
+        localStorage.setItem('craftkalash_deleted_categories', JSON.stringify(localDeleted));
+      }
+
+      // Also clean up localAdded if it was created locally
+      let localAdded = getLocalAddedCategories();
+      localAdded = localAdded.filter(c => c.id !== id);
+      localStorage.setItem('craftkalash_added_categories', JSON.stringify(localAdded));
+
+      // Clean up localUpdated
+      const localUpdated = getLocalUpdatedCategories();
+      delete localUpdated[id];
+      localStorage.setItem('craftkalash_updated_categories', JSON.stringify(localUpdated));
+
+      return { success: true, error: null };
     }
   }
 };
@@ -1056,6 +1234,7 @@ export const orderService = {
         let rzpOrderId = '';
         let rzpPaymentId = '';
         let rzpSignature = '';
+        let shippingAddress = ord.addresses;
         
         if (ord.payment_method && ord.payment_method.startsWith('{')) {
           try {
@@ -1066,6 +1245,9 @@ export const orderService = {
             rzpOrderId = parsed.razorpay_order_id || '';
             rzpPaymentId = parsed.razorpay_payment_id || '';
             rzpSignature = parsed.razorpay_signature || '';
+            if (parsed.shippingAddress) {
+              shippingAddress = parsed.shippingAddress;
+            }
           } catch (e) {
             console.error('Error parsing payment method JSON:', e);
           }
@@ -1079,7 +1261,7 @@ export const orderService = {
           razorpay_order_id: rzpOrderId,
           razorpay_payment_id: rzpPaymentId,
           razorpay_signature: rzpSignature,
-          shippingAddress: ord.addresses,
+          shippingAddress,
           customer_profile: ord.profiles,
           items: (ord.order_items || []).map((item: any) => ({
             id: item.id,
@@ -1131,6 +1313,7 @@ export const orderService = {
         let rzpOrderId = '';
         let rzpPaymentId = '';
         let rzpSignature = '';
+        let shippingAddress = ord.addresses;
         
         if (ord.payment_method && ord.payment_method.startsWith('{')) {
           try {
@@ -1141,6 +1324,9 @@ export const orderService = {
             rzpOrderId = parsed.razorpay_order_id || '';
             rzpPaymentId = parsed.razorpay_payment_id || '';
             rzpSignature = parsed.razorpay_signature || '';
+            if (parsed.shippingAddress) {
+              shippingAddress = parsed.shippingAddress;
+            }
           } catch (e) {
             console.error('Error parsing payment method JSON:', e);
           }
@@ -1154,7 +1340,7 @@ export const orderService = {
           razorpay_order_id: rzpOrderId,
           razorpay_payment_id: rzpPaymentId,
           razorpay_signature: rzpSignature,
-          shippingAddress: ord.addresses,
+          shippingAddress,
           customer_profile: ord.profiles,
           items: (ord.order_items || []).map((item: any) => ({
             id: item.id,
@@ -1198,21 +1384,20 @@ export const orderService = {
     const orderNumber = `CK-${Math.floor(100000 + Math.random() * 900000)}`;
     const localId = `order-${Math.random().toString(36).substring(2, 9)}`;
 
-    let dbPaymentMethod = paymentMethod;
+    let dbPaymentMethod = '';
+    const paymentObj: any = {
+      method: paymentMethod,
+      shippingAddress: address
+    };
     if (paymentMethod === 'RAZORPAY' && razorpayDetails) {
-      dbPaymentMethod = JSON.stringify({
-        method: 'RAZORPAY',
-        razorpay_order_id: razorpayDetails.orderId,
-        razorpay_payment_id: razorpayDetails.paymentId,
-        razorpay_signature: razorpayDetails.signature
-      });
+      paymentObj.razorpay_order_id = razorpayDetails.orderId;
+      paymentObj.razorpay_payment_id = razorpayDetails.paymentId;
+      paymentObj.razorpay_signature = razorpayDetails.signature;
     } else if (paymentMethod === 'UPI') {
-      dbPaymentMethod = JSON.stringify({
-        method: 'UPI',
-        utr: utr || '',
-        screenshotUrl: screenshotUrl || ''
-      });
+      paymentObj.utr = utr || '';
+      paymentObj.screenshotUrl = screenshotUrl || '';
     }
+    dbPaymentMethod = JSON.stringify(paymentObj);
 
     const dbPaymentStatus = paymentMethod === 'RAZORPAY' ? 'paid' : 'pending';
 
@@ -1537,3 +1722,110 @@ export const newsletterService = {
     }
   }
 };
+
+// Local storage helpers for Contact Messages fallback
+const getLocalEnquiries = (): ContactMessage[] => {
+  try {
+    const raw = localStorage.getItem('craft_local_enquiries');
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+};
+
+const saveLocalEnquiries = (list: ContactMessage[]) => {
+  try {
+    localStorage.setItem('craft_local_enquiries', JSON.stringify(list));
+  } catch (e) {
+    console.error('Failed to save local enquiries:', e);
+  }
+};
+
+export const enquiriesService = {
+  async getEnquiries(): Promise<ContactMessage[]> {
+    try {
+      ensureConfigured();
+      const { data, error } = await supabase
+        .from('contact_messages')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      return data || [];
+    } catch (err) {
+      console.warn('Database getEnquiries failed, loading local fallback enquiries:', err);
+      return getLocalEnquiries();
+    }
+  },
+
+  async markAsRead(id: string, isRead: boolean): Promise<boolean> {
+    try {
+      ensureConfigured();
+      if (id.startsWith('local-')) {
+        const list = getLocalEnquiries();
+        const updated = list.map(item => item.id === id ? { ...item, is_read: isRead } : item);
+        saveLocalEnquiries(updated);
+        return true;
+      }
+      if (!isUUID(id)) throw new Error('Not a valid DB ID');
+      
+      const { error } = await supabase
+        .from('contact_messages')
+        .update({ is_read: isRead })
+        .eq('id', id);
+      
+      if (error) throw error;
+      return true;
+    } catch (err) {
+      console.warn('Database markAsRead failed, updating local fallback:', err);
+      const list = getLocalEnquiries();
+      const updated = list.map(item => item.id === id ? { ...item, is_read: isRead } : item);
+      saveLocalEnquiries(updated);
+      return true;
+    }
+  },
+
+  async deleteEnquiry(id: string): Promise<boolean> {
+    try {
+      ensureConfigured();
+      if (id.startsWith('local-')) {
+        const list = getLocalEnquiries();
+        const updated = list.filter(item => item.id !== id);
+        saveLocalEnquiries(updated);
+        return true;
+      }
+      if (!isUUID(id)) throw new Error('Not a valid DB ID');
+      
+      const { error } = await supabase
+        .from('contact_messages')
+        .delete()
+        .eq('id', id);
+      
+      if (error) throw error;
+      return true;
+    } catch (err) {
+      console.warn('Database deleteEnquiry failed, deleting locally:', err);
+      const list = getLocalEnquiries();
+      const updated = list.filter(item => item.id !== id);
+      saveLocalEnquiries(updated);
+      return true;
+    }
+  },
+
+  async addLocalEnquiryFallback(message: Partial<ContactMessage>): Promise<void> {
+    const list = getLocalEnquiries();
+    const newEnquiry: ContactMessage = {
+      id: message.id || `local-${Date.now()}`,
+      name: message.name || '',
+      email: message.email || '',
+      phone: message.phone || '',
+      subject: message.subject || '',
+      message: message.message || '',
+      ip_address: message.ip_address || '127.0.0.1',
+      is_read: false,
+      created_at: message.created_at || new Date().toISOString()
+    };
+    saveLocalEnquiries([newEnquiry, ...list]);
+  }
+};
+
