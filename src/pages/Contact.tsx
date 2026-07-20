@@ -37,7 +37,7 @@ export default function Contact() {
         throw new Error(data.error || 'Failed to submit enquiry.');
       }
 
-      addToast('Thank you! Your message has been sent successfully.', 'success');
+      addToast("Thank you! Your message has been received.", 'success');
       setFormData({ name: '', email: '', phone: '', subject: '', message: '' });
     } catch (error: any) {
       console.error('[Contact Form Error]:', error);
@@ -159,7 +159,7 @@ export default function Contact() {
                 <input
                   type="email"
                   required
-                  placeholder="Enter your email address"
+                  placeholder="name@example.com"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className="w-full bg-[#FAF8F5]/50 border border-[#EBE5DB] rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-brand-primary focus:bg-white focus:ring-1 focus:ring-brand-primary/10 text-brand-text-primary font-semibold placeholder-gray-400 transition-all"
@@ -187,7 +187,7 @@ export default function Contact() {
                 </label>
                 <input
                   type="text"
-                  placeholder="How can we help you?"
+                  placeholder="What can we help you with?"
                   value={formData.subject}
                   onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
                   className="w-full bg-[#FAF8F5]/50 border border-[#EBE5DB] rounded-xl px-4 py-3 text-xs focus:outline-none focus:border-brand-primary focus:bg-white focus:ring-1 focus:ring-brand-primary/10 text-brand-text-primary font-semibold placeholder-gray-400 transition-all"

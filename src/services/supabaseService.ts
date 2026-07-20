@@ -1744,40 +1744,29 @@ const saveLocalEnquiries = (list: ContactMessage[]) => {
 export const enquiriesService = {
   async getEnquiries(): Promise<ContactMessage[]> {
     try {
-      ensureConfigured();
-      const { data, error } = await supabase
-        .from('contact_messages')
-        .select('*')
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
+      const response = await fetch('/api/enquiries');
+      if (!response.ok) throw new Error('Failed to fetch from API');
+      const data = await response.json();
       return data || [];
     } catch (err) {
-      console.warn('Database getEnquiries failed, loading local fallback enquiries:', err);
+      console.warn('Database getEnquiries API failed, loading local fallback enquiries:', err);
       return getLocalEnquiries();
     }
   },
 
   async markAsRead(id: string, isRead: boolean): Promise<boolean> {
     try {
-      ensureConfigured();
-      if (id.startsWith('local-')) {
-        const list = getLocalEnquiries();
-        const updated = list.map(item => item.id === id ? { ...item, is_read: isRead } : item);
-        saveLocalEnquiries(updated);
-        return true;
-      }
-      if (!isUUID(id)) throw new Error('Not a valid DB ID');
-      
-      const { error } = await supabase
-        .from('contact_messages')
-        .update({ is_read: isRead })
-        .eq('id', id);
-      
-      if (error) throw error;
+      const response = await fetch(`/api/enquiries/${id}/read`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ is_read: isRead })
+      });
+      if (!response.ok) throw new Error('Failed to update via API');
       return true;
     } catch (err) {
-      console.warn('Database markAsRead failed, updating local fallback:', err);
+      console.warn('Database markAsRead API failed, updating local fallback:', err);
       const list = getLocalEnquiries();
       const updated = list.map(item => item.id === id ? { ...item, is_read: isRead } : item);
       saveLocalEnquiries(updated);
@@ -1787,24 +1776,13 @@ export const enquiriesService = {
 
   async deleteEnquiry(id: string): Promise<boolean> {
     try {
-      ensureConfigured();
-      if (id.startsWith('local-')) {
-        const list = getLocalEnquiries();
-        const updated = list.filter(item => item.id !== id);
-        saveLocalEnquiries(updated);
-        return true;
-      }
-      if (!isUUID(id)) throw new Error('Not a valid DB ID');
-      
-      const { error } = await supabase
-        .from('contact_messages')
-        .delete()
-        .eq('id', id);
-      
-      if (error) throw error;
+      const response = await fetch(`/api/enquiries/${id}`, {
+        method: 'DELETE'
+      });
+      if (!response.ok) throw new Error('Failed to delete via API');
       return true;
     } catch (err) {
-      console.warn('Database deleteEnquiry failed, deleting locally:', err);
+      console.warn('Database deleteEnquiry API failed, deleting locally:', err);
       const list = getLocalEnquiries();
       const updated = list.filter(item => item.id !== id);
       saveLocalEnquiries(updated);

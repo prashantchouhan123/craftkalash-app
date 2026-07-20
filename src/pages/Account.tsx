@@ -646,10 +646,10 @@ export default function Account() {
                           <input
                             type="text"
                             required
-                            placeholder="John Doe"
+                            placeholder="Recipient Name"
                             value={newAddrName}
                             onChange={(e) => setNewAddrName(e.target.value)}
-                            className="w-full bg-white border border-brand-border/60 rounded-xl px-3 py-2 font-bold focus:outline-none focus:border-brand-primary text-brand-text-primary"
+                            className="w-full bg-white border border-brand-border/60 rounded-xl px-3 py-2 font-bold focus:outline-none focus:border-brand-primary text-brand-text-primary placeholder-gray-400"
                           />
                         </div>
                         <div className="space-y-1.5">
@@ -657,10 +657,10 @@ export default function Account() {
                           <input
                             type="tel"
                             required
-                            placeholder="e.g. +91 99999 88888"
+                            placeholder="Recipient Phone Number"
                             value={newAddrPhone}
                             onChange={(e) => setNewAddrPhone(e.target.value)}
-                            className="w-full bg-white border border-brand-border/60 rounded-xl px-3 py-2 font-bold focus:outline-none focus:border-brand-primary text-brand-text-primary"
+                            className="w-full bg-white border border-brand-border/60 rounded-xl px-3 py-2 font-bold focus:outline-none focus:border-brand-primary text-brand-text-primary placeholder-gray-400"
                           />
                         </div>
                       </div>
@@ -670,10 +670,10 @@ export default function Account() {
                         <input
                           type="text"
                           required
-                          placeholder="Building, Street, flat/floor credentials"
+                          placeholder="Street address, house number, apartment"
                           value={newAddrStreet}
                           onChange={(e) => setNewAddrStreet(e.target.value)}
-                          className="w-full bg-white border border-brand-border/60 rounded-xl px-3 py-2 font-bold focus:outline-none focus:border-brand-primary text-brand-text-primary"
+                          className="w-full bg-white border border-brand-border/60 rounded-xl px-3 py-2 font-bold focus:outline-none focus:border-brand-primary text-brand-text-primary placeholder-gray-400"
                         />
                       </div>
 
@@ -683,10 +683,10 @@ export default function Account() {
                           <input
                             type="text"
                             required
-                            placeholder="Sumerpur"
+                            placeholder="City"
                             value={newAddrCity}
                             onChange={(e) => setNewAddrCity(e.target.value)}
-                            className="w-full bg-white border border-brand-border/60 rounded-xl px-3 py-2 font-bold focus:outline-none focus:border-brand-primary text-brand-text-primary"
+                            className="w-full bg-white border border-brand-border/60 rounded-xl px-3 py-2 font-bold focus:outline-none focus:border-brand-primary text-brand-text-primary placeholder-gray-400"
                           />
                         </div>
                         <div className="space-y-1.5">
@@ -694,10 +694,10 @@ export default function Account() {
                           <input
                             type="text"
                             required
-                            placeholder="Rajasthan"
+                            placeholder="State"
                             value={newAddrState}
                             onChange={(e) => setNewAddrState(e.target.value)}
-                            className="w-full bg-white border border-brand-border/60 rounded-xl px-3 py-2 font-bold focus:outline-none focus:border-brand-primary text-brand-text-primary"
+                            className="w-full bg-white border border-brand-border/60 rounded-xl px-3 py-2 font-bold focus:outline-none focus:border-brand-primary text-brand-text-primary placeholder-gray-400"
                           />
                         </div>
                         <div className="space-y-1.5">
@@ -705,10 +705,10 @@ export default function Account() {
                           <input
                             type="text"
                             required
-                            placeholder="306902"
+                            placeholder="ZIP / Pincode"
                             value={newAddrZip}
                             onChange={(e) => setNewAddrZip(e.target.value)}
-                            className="w-full bg-white border border-brand-border/60 rounded-xl px-3 py-2 font-bold focus:outline-none focus:border-brand-primary text-brand-text-primary"
+                            className="w-full bg-white border border-brand-border/60 rounded-xl px-3 py-2 font-bold focus:outline-none focus:border-brand-primary text-brand-text-primary placeholder-gray-400"
                           />
                         </div>
                         <div className="space-y-1.5">
@@ -910,8 +910,8 @@ export default function Account() {
                       <div className="flex items-center gap-2.5">
                         <div className="w-2.5 h-2.5 rounded-full bg-brand-success shrink-0" />
                         <div>
-                          <strong className="text-brand-text-primary">Current Session (Chrome Sandbox)</strong>
-                          <span className="block text-[10px] text-gray-400">Jodhpur, Rajasthan, India • IP: 127.0.0.1</span>
+                          <strong className="text-brand-text-primary">Active Web Session</strong>
+                          <span className="block text-[10px] text-gray-400">Verified Browser Connection • Secured SSL Link</span>
                         </div>
                       </div>
                       <span className="text-[10px] bg-brand-success/10 text-brand-success px-2 py-0.5 rounded-full font-bold">ACTIVE NOW</span>

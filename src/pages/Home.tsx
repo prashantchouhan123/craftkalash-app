@@ -285,6 +285,19 @@ export default function Home({ onQuickView }: HomeProps) {
             <ProductCard key={product.id} product={product} onQuickView={onQuickView} />
           ))}
         </div>
+
+        <div className="flex justify-center pt-4">
+          <button
+            onClick={() => {
+              setSelectedCategory('all');
+              navigate('/shop');
+            }}
+            className="inline-flex items-center gap-2 bg-brand-primary text-white text-sm font-bold px-8 py-3.5 rounded-xl hover:bg-brand-primary/95 transition-all shadow-sm hover:shadow hover:translate-y-[-1px] active:translate-y-0 cursor-pointer active:scale-98 group"
+          >
+            Show All Products
+            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+          </button>
+        </div>
       </section>
 
       {/* 5. Why Choose CraftKalash (Bento Grid) */}

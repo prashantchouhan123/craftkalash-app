@@ -64,6 +64,7 @@ export default function Admin() {
   const [loadingEnquiries, setLoadingEnquiries] = useState(false);
   const [enquirySearch, setEnquirySearch] = useState('');
   const [enquiryFilter, setEnquiryFilter] = useState<'all' | 'unread' | 'read'>('all');
+  const [selectedEnquiry, setSelectedEnquiry] = useState<ContactMessage | null>(null);
 
   // Selected expanded order ID
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
@@ -1311,7 +1312,7 @@ export default function Admin() {
             </motion.div>
           )}
 
-          {/* TAB: CUSTOMER ENQUIRIES */}
+          {/* TAB: CONTACT MESSAGES */}
           {activeTab === 'enquiries' && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
               <div className="bg-white border border-brand-border/60 p-6 rounded-3xl shadow-xs space-y-6">
@@ -1319,10 +1320,10 @@ export default function Admin() {
                   <div>
                     <h3 className="text-base font-heading font-black flex items-center gap-2">
                       <Mail className="w-5 h-5 text-brand-primary" />
-                      Customer Enquiries Inbox
+                      Contact Messages
                     </h3>
                     <p className="text-xs text-brand-text-secondary font-light">
-                      Track and moderate incoming submissions from the Contact form.
+                      Direct stored messages from your customer Contact Us submissions.
                     </p>
                   </div>
                   <button
@@ -1335,161 +1336,105 @@ export default function Admin() {
                   </button>
                 </div>
 
-                {/* SEARCH AND FILTERS */}
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <div className="relative flex-1">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input
-                      type="text"
-                      placeholder="Search by name, email, subject..."
-                      value={enquirySearch}
-                      onChange={(e) => setEnquirySearch(e.target.value)}
-                      className="w-full bg-[#FAF8F5]/40 border border-[#EBE5DB] rounded-xl pl-10 pr-4 py-2.5 text-xs focus:outline-none focus:border-brand-primary focus:bg-white text-brand-text-primary placeholder-gray-400 font-semibold"
-                    />
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] uppercase font-bold text-gray-400 whitespace-nowrap">Filter:</span>
-                    <div className="flex bg-brand-bg border border-brand-border rounded-xl p-0.5">
-                      {(['all', 'unread', 'read'] as const).map((filterOpt) => (
-                        <button
-                          key={filterOpt}
-                          onClick={() => setEnquiryFilter(filterOpt)}
-                          className={`px-3 py-1.5 rounded-lg text-[9px] uppercase font-black tracking-wider transition-all cursor-pointer ${
-                            enquiryFilter === filterOpt
-                              ? 'bg-white text-brand-primary shadow-xs'
-                              : 'text-brand-text-secondary hover:text-brand-text-primary'
-                          }`}
-                        >
-                          {filterOpt}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                {/* SEARCH */}
+                <div className="relative">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search messages by name, email, subject, or content..."
+                    value={enquirySearch}
+                    onChange={(e) => setEnquirySearch(e.target.value)}
+                    className="w-full bg-[#FAF8F5]/40 border border-[#EBE5DB] rounded-xl pl-10 pr-4 py-2.5 text-xs focus:outline-none focus:border-brand-primary focus:bg-white text-brand-text-primary placeholder-gray-400 font-semibold"
+                  />
                 </div>
 
-                {/* ENQUIRIES LISTING */}
+                {/* MESSAGES TABLE */}
                 {loadingEnquiries ? (
                   <div className="py-20 flex flex-col items-center justify-center gap-3">
                     <RefreshCw className="w-8 h-8 animate-spin text-brand-primary" />
-                    <p className="text-xs text-brand-text-secondary">Loading enquiries from database...</p>
+                    <p className="text-xs text-brand-text-secondary">Loading messages from database...</p>
                   </div>
                 ) : (() => {
                   const filtered = enquiries.filter(item => {
-                    const matchesSearch = 
+                    return (
                       item.name.toLowerCase().includes(enquirySearch.toLowerCase()) ||
                       item.email.toLowerCase().includes(enquirySearch.toLowerCase()) ||
                       (item.subject && item.subject.toLowerCase().includes(enquirySearch.toLowerCase())) ||
-                      item.message.toLowerCase().includes(enquirySearch.toLowerCase());
-                    
-                    if (enquiryFilter === 'unread') return matchesSearch && !item.is_read;
-                    if (enquiryFilter === 'read') return matchesSearch && item.is_read;
-                    return matchesSearch;
+                      item.message.toLowerCase().includes(enquirySearch.toLowerCase())
+                    );
                   });
 
-                  if (filtered.length === 0) {
+                  // Sort messages from newest to oldest
+                  const sorted = [...filtered].sort(
+                    (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+                  );
+
+                  if (sorted.length === 0) {
                     return (
                       <div className="border border-dashed border-brand-border/80 rounded-2xl p-12 text-center space-y-2">
                         <Mail className="w-8 h-8 text-gray-300 mx-auto" />
-                        <h4 className="text-xs font-bold text-brand-text-primary uppercase tracking-wider">No Enquiries Found</h4>
+                        <h4 className="text-xs font-bold text-brand-text-primary uppercase tracking-wider">No Messages Found</h4>
                         <p className="text-[10px] text-brand-text-secondary font-light max-w-sm mx-auto">
-                          There are no contact form submissions matching your filters.
+                          There are no contact form messages stored in the system.
                         </p>
                       </div>
                     );
                   }
 
                   return (
-                    <div className="space-y-4">
-                      {filtered.map((item) => (
-                        <div
-                          key={item.id}
-                          className={`border rounded-2xl p-4.5 transition-all bg-[#FAF8F5]/20 ${
-                            item.is_read
-                              ? 'border-brand-border/40 hover:border-brand-border/80'
-                              : 'border-amber-700/20 bg-amber-50/5 hover:border-amber-700/40 shadow-xs'
-                          }`}
-                        >
-                          {/* Top row */}
-                          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2 mb-3 pb-3 border-b border-brand-border/20">
-                            <div className="space-y-1">
-                              <div className="flex items-center gap-2">
-                                <span className="font-bold text-brand-text-primary text-xs">{item.name}</span>
-                                {!item.is_read && (
-                                  <span className="flex h-2 w-2 relative">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-primary opacity-75"></span>
-                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-primary"></span>
-                                  </span>
-                                )}
-                              </div>
-                              <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-brand-text-secondary">
-                                <span className="font-mono">{item.email}</span>
-                                {item.phone && (
-                                  <span className="font-mono border-l border-brand-border/60 pl-3">
-                                    Phone: {item.phone}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                            
-                            <div className="flex items-center gap-2 self-start sm:self-center text-[10px]">
-                              <span className="text-gray-400 font-mono">
+                    <div className="overflow-x-auto border border-brand-border/60 rounded-2xl bg-white">
+                      <table className="w-full text-left border-collapse min-w-[800px]">
+                        <thead>
+                          <tr className="bg-[#FAF8F5] border-b border-brand-border/60 text-brand-text-secondary text-[10px] uppercase tracking-wider font-bold">
+                            <th className="p-4">Date & Time</th>
+                            <th className="p-4">Name</th>
+                            <th className="p-4">Email</th>
+                            <th className="p-4">Phone Number</th>
+                            <th className="p-4">Subject</th>
+                            <th className="p-4">Message</th>
+                            <th className="p-4 text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-brand-border/30 text-xs text-brand-text-primary">
+                          {sorted.map((item) => (
+                            <tr key={item.id} className="hover:bg-brand-bg/10 transition-colors">
+                              <td className="p-4 font-mono text-[10px] text-gray-500 whitespace-nowrap">
                                 {new Date(item.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Message core info */}
-                          <div className="space-y-2 mb-4">
-                            {item.subject && (
-                              <div className="text-[11px] font-bold text-brand-text-primary uppercase tracking-wide">
-                                <span className="text-[9px] text-brand-secondary font-black uppercase tracking-wider mr-1">Subject:</span>
-                                {item.subject}
-                              </div>
-                            )}
-                            <div className="bg-white/60 border border-brand-border/30 rounded-xl p-3.5 text-brand-text-primary leading-relaxed text-[11px] font-light whitespace-pre-wrap">
-                              {item.message}
-                            </div>
-                          </div>
-
-                          {/* Bottom Row Actions */}
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3.5 border-t border-brand-border/10 text-[10px]">
-                            {/* Metadata */}
-                            <div className="text-[9px] text-gray-400 font-mono">
-                              ID: {item.id} {item.ip_address && `• IP: ${item.ip_address}`}
-                            </div>
-
-                            {/* CTAs */}
-                            <div className="flex items-center gap-2 self-end sm:self-auto">
-                              <button
-                                onClick={() => handleMarkAsRead(item.id, !item.is_read)}
-                                className={`px-2.5 py-1.5 border rounded-lg font-bold uppercase transition-all cursor-pointer ${
-                                  item.is_read
-                                    ? 'bg-white border-brand-border hover:bg-brand-bg text-brand-text-primary'
-                                    : 'bg-brand-primary/5 border-brand-primary/20 hover:bg-brand-primary/10 text-brand-primary'
-                                }`}
-                              >
-                                {item.is_read ? 'Mark Unread' : 'Mark Read'}
-                              </button>
-
-                              <a
-                                href={`mailto:${item.email}?subject=Re: ${encodeURIComponent(item.subject || 'Enquiry with CraftKalash')}`}
-                                className="px-2.5 py-1.5 bg-brand-secondary hover:bg-brand-secondary/90 text-white rounded-lg font-bold uppercase transition-all shadow-xs text-center"
-                              >
-                                Reply via Email
-                              </a>
-
-                              <button
-                                onClick={() => handleDeleteEnquiry(item.id)}
-                                className="p-1.5 text-brand-error hover:bg-red-50 rounded-lg transition-all cursor-pointer border border-transparent hover:border-red-100"
-                                title="Delete Enquiry"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                              </td>
+                              <td className="p-4 font-bold whitespace-nowrap">{item.name}</td>
+                              <td className="p-4 font-mono text-[11px] text-gray-600">{item.email}</td>
+                              <td className="p-4 font-mono text-[11px] text-gray-600">
+                                {item.phone || <span className="text-gray-400 font-sans italic">N/A</span>}
+                              </td>
+                              <td className="p-4 font-bold max-w-[150px] truncate" title={item.subject || ''}>
+                                {item.subject || <span className="text-gray-400 font-sans font-normal italic">No Subject</span>}
+                              </td>
+                              <td className="p-4 max-w-[200px] truncate" title={item.message}>
+                                {item.message}
+                              </td>
+                              <td className="p-4 text-right whitespace-nowrap">
+                                <div className="flex items-center justify-end gap-2">
+                                  <button
+                                    onClick={() => setSelectedEnquiry(item)}
+                                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-brand-primary/5 hover:bg-brand-primary/10 border border-brand-primary/15 text-brand-primary rounded-lg font-bold uppercase text-[9px] cursor-pointer transition-all"
+                                    title="View Message"
+                                  >
+                                    <Eye className="w-3 h-3" />
+                                    View Message
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteEnquiry(item.id)}
+                                    className="inline-flex items-center justify-center p-1.5 text-brand-error hover:bg-red-50 hover:border-red-100 border border-transparent rounded-lg cursor-pointer transition-all"
+                                    title="Delete Message"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   );
                 })()}
@@ -1879,6 +1824,78 @@ export default function Admin() {
                   Inject Coupon Rule
                 </button>
               </form>
+            </motion.div>
+          </div>
+        )}
+
+        {selectedEnquiry && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 0.5 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedEnquiry(null)}
+              className="absolute inset-0 bg-black cursor-pointer"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="bg-white rounded-3xl p-6 max-w-xl w-full border border-brand-border/60 shadow-2xl relative space-y-4 max-h-[90vh] overflow-y-auto"
+            >
+              <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-brand-secondary via-brand-primary to-brand-accent" />
+              <button
+                onClick={() => setSelectedEnquiry(null)}
+                className="absolute top-4 right-4 p-1 rounded-lg hover:bg-brand-bg text-gray-400 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="space-y-1 pb-3 border-b border-brand-border/30">
+                <span className="text-[9px] text-brand-secondary font-black uppercase tracking-wider block">Contact Message Details</span>
+                <h3 className="text-base font-heading font-black text-brand-text-primary">
+                  {selectedEnquiry.subject || 'No Subject'}
+                </h3>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 text-xs">
+                <div className="space-y-0.5">
+                  <span className="text-[9px] text-gray-400 uppercase font-bold">From</span>
+                  <div className="font-bold text-brand-text-primary">{selectedEnquiry.name}</div>
+                </div>
+                <div className="space-y-0.5">
+                  <span className="text-[9px] text-gray-400 uppercase font-bold">Email Address</span>
+                  <div className="font-mono font-bold text-brand-text-primary break-all">{selectedEnquiry.email}</div>
+                </div>
+                <div className="space-y-0.5">
+                  <span className="text-[9px] text-gray-400 uppercase font-bold">Phone Number</span>
+                  <div className="font-mono font-bold text-brand-text-primary">
+                    {selectedEnquiry.phone || <span className="text-gray-400 font-sans font-normal italic">N/A</span>}
+                  </div>
+                </div>
+                <div className="space-y-0.5">
+                  <span className="text-[9px] text-gray-400 uppercase font-bold">Date & Time</span>
+                  <div className="font-mono text-gray-500">
+                    {new Date(selectedEnquiry.created_at).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-1.5 pt-3 border-t border-brand-border/30">
+                <span className="text-[9px] text-gray-400 uppercase font-bold block">Message Body</span>
+                <div className="bg-[#FAF8F5] border border-brand-border/40 rounded-2xl p-4 text-xs text-brand-text-primary leading-relaxed font-light whitespace-pre-wrap select-text max-h-60 overflow-y-auto">
+                  {selectedEnquiry.message}
+                </div>
+              </div>
+
+              <div className="pt-2 flex justify-end">
+                <button
+                  onClick={() => setSelectedEnquiry(null)}
+                  className="bg-brand-primary text-white font-bold py-2 px-5 rounded-xl text-xs hover:bg-brand-primary/95 transition-all cursor-pointer"
+                >
+                  Close Message
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

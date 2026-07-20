@@ -427,7 +427,7 @@ export default function Auth() {
                     <input
                       type="tel"
                       required
-                      placeholder="Contact Number"
+                      placeholder="Phone Number"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
                       className="w-full bg-[#FAF8F5]/50 border border-[#EBE5DB] rounded-xl pl-10 pr-4 py-3 focus:outline-none focus:border-brand-primary focus:bg-white focus:ring-1 focus:ring-brand-primary/10 text-brand-text-primary font-semibold placeholder-gray-400 transition-all"

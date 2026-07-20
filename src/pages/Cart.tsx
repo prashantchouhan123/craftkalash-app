@@ -287,7 +287,7 @@ export default function Cart({ onQuickView }: { onQuickView?: (product: any) => 
                 <div className="flex gap-2">
                   <input
                     type="text"
-                    placeholder="E.G. WELCOME10"
+                    placeholder="e.g., CRAFT10"
                     value={couponCode}
                     onChange={(e) => setCouponCode(e.target.value)}
                     disabled={Boolean(appliedCoupon)}

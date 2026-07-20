@@ -411,7 +411,7 @@ export default function Checkout() {
                   <input
                     type="text"
                     required
-                    placeholder="Jane Smith"
+                    placeholder="Recipient Name"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     className="w-full bg-brand-bg/40 border border-brand-border/60 rounded-xl px-4 py-2.5 font-bold focus:outline-none focus:border-brand-primary text-brand-text-primary placeholder-gray-400"
@@ -424,7 +424,7 @@ export default function Checkout() {
                   <input
                     type="email"
                     required
-                    placeholder="janesmith@example.com"
+                    placeholder="Recipient Email Address"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full bg-brand-bg/40 border border-brand-border/60 rounded-xl px-4 py-2.5 font-bold focus:outline-none focus:border-brand-primary text-brand-text-primary placeholder-gray-400"
@@ -439,7 +439,7 @@ export default function Checkout() {
                   <input
                     type="tel"
                     required
-                    placeholder="E.g., +91 98765 43210"
+                    placeholder="Recipient Phone Number"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     className="w-full bg-brand-bg/40 border border-brand-border/60 rounded-xl px-4 py-2.5 font-bold focus:outline-none focus:border-brand-primary text-brand-text-primary placeholder-gray-400"
@@ -451,7 +451,7 @@ export default function Checkout() {
                   <label className="font-bold text-brand-text-secondary uppercase text-[10px]">Landmark / Instruction (Optional)</label>
                   <input
                     type="text"
-                    placeholder="Opposite clock tower, near central park"
+                    placeholder="Landmark (optional)"
                     value={landmark}
                     onChange={(e) => setLandmark(e.target.value)}
                     className="w-full bg-brand-bg/40 border border-brand-border/60 rounded-xl px-4 py-2.5 font-bold focus:outline-none focus:border-brand-primary text-brand-text-primary placeholder-gray-400"
@@ -464,7 +464,7 @@ export default function Checkout() {
                 <input
                   type="text"
                   required
-                  placeholder="Street name, Building number, Flat/Floor details"
+                  placeholder="Street address, house number, apartment"
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
                   className="w-full bg-brand-bg/40 border border-brand-border/60 rounded-xl px-4 py-2.5 font-bold focus:outline-none focus:border-brand-primary text-brand-text-primary placeholder-gray-400"
@@ -478,10 +478,10 @@ export default function Checkout() {
                   <input
                     type="text"
                     required
-                    placeholder="Jodhpur"
+                    placeholder="City"
                     value={city}
                     onChange={(e) => setCity(e.target.value)}
-                    className="w-full bg-brand-bg/40 border border-brand-border/60 rounded-xl px-4 py-2.5 font-bold focus:outline-none focus:border-brand-primary text-brand-text-primary"
+                    className="w-full bg-brand-bg/40 border border-brand-border/60 rounded-xl px-4 py-2.5 font-bold focus:outline-none focus:border-brand-primary text-brand-text-primary placeholder-gray-400"
                   />
                   {addressErrors.city && <span className="text-[10px] text-brand-error font-semibold">{addressErrors.city}</span>}
                 </div>
@@ -491,10 +491,10 @@ export default function Checkout() {
                   <input
                     type="text"
                     required
-                    placeholder="Rajasthan"
+                    placeholder="State"
                     value={state}
                     onChange={(e) => setState(e.target.value)}
-                    className="w-full bg-brand-bg/40 border border-brand-border/60 rounded-xl px-4 py-2.5 font-bold focus:outline-none focus:border-brand-primary text-brand-text-primary"
+                    className="w-full bg-brand-bg/40 border border-brand-border/60 rounded-xl px-4 py-2.5 font-bold focus:outline-none focus:border-brand-primary text-brand-text-primary placeholder-gray-400"
                   />
                   {addressErrors.state && <span className="text-[10px] text-brand-error font-semibold">{addressErrors.state}</span>}
                 </div>
@@ -504,10 +504,10 @@ export default function Checkout() {
                   <input
                     type="text"
                     required
-                    placeholder="342001"
+                    placeholder="ZIP / Pincode"
                     value={pincode}
                     onChange={(e) => setPincode(e.target.value)}
-                    className="w-full bg-brand-bg/40 border border-brand-border/60 rounded-xl px-4 py-2.5 font-bold focus:outline-none focus:border-brand-primary text-brand-text-primary"
+                    className="w-full bg-brand-bg/40 border border-brand-border/60 rounded-xl px-4 py-2.5 font-bold focus:outline-none focus:border-brand-primary text-brand-text-primary placeholder-gray-400"
                   />
                   {addressErrors.pincode && <span className="text-[10px] text-brand-error font-semibold">{addressErrors.pincode}</span>}
                 </div>

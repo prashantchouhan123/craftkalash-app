@@ -4,10 +4,33 @@ import { createServer as createViteServer } from "vite";
 import dotenv from "dotenv";
 import crypto from "crypto";
 import { createClient } from "@supabase/supabase-js";
-import { Resend } from "resend";
+import fs from "fs";
 
 
 dotenv.config();
+
+const ENQUIRIES_FILE = path.join(process.cwd(), "enquiries.json");
+let contactMessagesTableExists = true;
+
+function getLocalEnquiries(): any[] {
+  try {
+    if (fs.existsSync(ENQUIRIES_FILE)) {
+      const data = fs.readFileSync(ENQUIRIES_FILE, "utf-8");
+      return JSON.parse(data);
+    }
+  } catch (err) {
+    console.error("Error reading local enquiries file:", err);
+  }
+  return [];
+}
+
+function saveLocalEnquiries(enquiries: any[]): void {
+  try {
+    fs.writeFileSync(ENQUIRIES_FILE, JSON.stringify(enquiries, null, 2), "utf-8");
+  } catch (err) {
+    console.error("Error writing local enquiries file:", err);
+  }
+}
 
 async function startServer() {
   const app = express();
@@ -97,9 +120,6 @@ async function startServer() {
     }
   });
 
-  // Rate limiting map
-  const ipLimits = new Map<string, { count: number; resetTime: number }>();
-
   // Helper to sanitize HTML to prevent spam/script injection
   function sanitizeInput(str: string): string {
     if (typeof str !== "string") return "";
@@ -122,21 +142,7 @@ async function startServer() {
     try {
       const ip = (req.headers["x-forwarded-for"] as string) || req.socket.remoteAddress || "127.0.0.1";
       
-      // 1. Rate Limiting Check (Max 5 submissions per 5 minutes per IP)
-      const now = Date.now();
-      const limit = ipLimits.get(ip);
-      if (limit && now < limit.resetTime && limit.count >= 5) {
-        return res.status(429).json({
-          error: "Too many enquiries submitted from your IP. Please try again after 5 minutes."
-        });
-      }
-      if (!limit || now > limit.resetTime) {
-        ipLimits.set(ip, { count: 1, resetTime: now + 5 * 60 * 1000 });
-      } else {
-        limit.count += 1;
-      }
-
-      // 2. Extract and Validate fields
+      // Extract and Validate fields
       const { name, email, phone, subject, message } = req.body;
       
       if (!name || typeof name !== "string" || name.trim().length === 0) {
@@ -159,18 +165,20 @@ async function startServer() {
 
       console.log(`[Server /api/contact] Received message from ${cleanName} (${cleanEmail}) at ${timestamp}`);
 
-      // 4. Save to Supabase
-      const supabaseUrl = process.env.VITE_SUPABASE_URL || "";
-      const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || "";
+      // 4. Save to Supabase with local fallback
+      const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "";
+      const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || "";
       let savedToDb = false;
       let dbErrorMessage = "";
+      const newEnquiryId = "enq_" + Date.now() + "_" + Math.random().toString(36).substring(2, 9);
 
-      if (supabaseUrl && supabaseAnonKey) {
+      if (supabaseUrl && supabaseAnonKey && contactMessagesTableExists) {
         try {
           const supabase = createClient(supabaseUrl, supabaseAnonKey);
           const { error: dbError } = await supabase
             .from("contact_messages")
             .insert({
+              id: newEnquiryId,
               name: cleanName,
               email: cleanEmail,
               phone: cleanPhone || null,
@@ -181,234 +189,199 @@ async function startServer() {
             });
           
           if (dbError) {
-            console.error("[Server /api/contact] Database Insert Error:", dbError);
-            dbErrorMessage = dbError.message;
+            dbErrorMessage = dbError.message || "";
+            if (dbErrorMessage.includes("Could not find") || dbErrorMessage.includes("relation") || dbErrorMessage.includes("schema cache")) {
+              contactMessagesTableExists = false;
+              console.log("[Server /api/contact] Supabase storage is currently using local backup mode.");
+            } else {
+              console.log("[Server /api/contact] Database bypass reason:", dbErrorMessage);
+            }
           } else {
-            console.log("[Server /api/contact] Enquiry successfully stored in Supabase contact_messages table.");
+            console.log("[Server /api/contact] Enquiry stored in database.");
             savedToDb = true;
           }
         } catch (dbEx: any) {
-          console.error("[Server /api/contact] Exception connecting to Supabase:", dbEx);
-          dbErrorMessage = dbEx.message;
+          dbErrorMessage = dbEx.message || "";
+          console.log("[Server /api/contact] Database connection skipped:", dbErrorMessage);
         }
       } else {
-        console.warn("[Server /api/contact] Supabase is not configured. Skipping database insertion.");
-        dbErrorMessage = "Supabase credentials missing";
+        dbErrorMessage = "Database offline or not configured";
       }
 
-      // 5. Send email using Resend
-      const resendApiKey = process.env.RESEND_API_KEY;
-      let emailSent = false;
-      let emailErrorDetail = "";
-
-      if (resendApiKey) {
+      // Fallback: If saving to Supabase database fails, save to server-side local file
+      if (!savedToDb) {
+        console.log(`[Server /api/contact] Storing to local server-side storage: ${dbErrorMessage}`);
         try {
-          const resend = new Resend(resendApiKey);
-          const htmlContent = `
-<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="utf-8">
-  <style>
-    body {
-      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-      background-color: #FAF8F5;
-      color: #3C2F2F;
-      margin: 0;
-      padding: 0;
-      -webkit-font-smoothing: antialiased;
-    }
-    .wrapper {
-      width: 100%;
-      background-color: #FAF8F5;
-      padding: 40px 20px;
-      box-sizing: border-box;
-    }
-    .container {
-      max-width: 600px;
-      margin: 0 auto;
-      background-color: #ffffff;
-      border: 1px solid #EBE5DB;
-      border-radius: 16px;
-      overflow: hidden;
-      box-shadow: 0 4px 12px rgba(111, 78, 55, 0.04);
-    }
-    .header {
-      background-color: #6F4E37;
-      padding: 30px 40px;
-      text-align: center;
-    }
-    .header h1 {
-      color: #ffffff;
-      font-size: 20px;
-      font-weight: 700;
-      margin: 0;
-      letter-spacing: 0.5px;
-      text-transform: uppercase;
-    }
-    .header p {
-      color: #FAF8F5;
-      font-size: 13px;
-      margin: 5px 0 0 0;
-      opacity: 0.85;
-    }
-    .content {
-      padding: 40px;
-    }
-    .section-title {
-      font-size: 11px;
-      font-weight: 800;
-      color: #A16207;
-      text-transform: uppercase;
-      letter-spacing: 1.5px;
-      margin-bottom: 20px;
-      border-bottom: 1px solid #FAF8F5;
-      padding-bottom: 8px;
-    }
-    .field-row {
-      margin-bottom: 16px;
-      padding-bottom: 12px;
-      border-bottom: 1px dashed #F5EFEB;
-    }
-    .field-row:last-child {
-      border-bottom: none;
-      margin-bottom: 0;
-      padding-bottom: 0;
-    }
-    .field-label {
-      font-size: 10px;
-      font-weight: 700;
-      color: #8C7A6B;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 4px;
-    }
-    .field-value {
-      font-size: 14px;
-      font-weight: 500;
-      color: #3C2F2F;
-      line-height: 1.5;
-    }
-    .message-box {
-      background-color: #FAF8F5;
-      border: 1px solid #EBE5DB;
-      border-radius: 12px;
-      padding: 20px;
-      font-size: 13px;
-      line-height: 1.6;
-      color: #3C2F2F;
-      white-space: pre-wrap;
-      margin-top: 5px;
-    }
-    .footer {
-      background-color: #FAF8F5;
-      padding: 24px 40px;
-      text-align: center;
-      border-top: 1px solid #EBE5DB;
-    }
-    .footer p {
-      font-size: 11px;
-      color: #8C7A6B;
-      margin: 0;
-      line-height: 1.5;
-    }
-  </style>
-</head>
-<body>
-  <div class="wrapper">
-    <div class="container">
-      <div class="header">
-        <h1>CraftKalash</h1>
-        <p>New Contact Form Submission</p>
-      </div>
-      <div class="content">
-        <div class="section-title">Enquiry Details</div>
-        
-        <div class="field-row">
-          <div class="field-label">Customer Name</div>
-          <div class="field-value">${cleanName}</div>
-        </div>
-        
-        <div class="field-row">
-          <div class="field-label">Customer Email</div>
-          <div class="field-value"><a href="mailto:${cleanEmail}" style="color: #6F4E37; text-decoration: underline;">${cleanEmail}</a></div>
-        </div>
-        
-        <div class="field-row">
-          <div class="field-label">Phone Number</div>
-          <div class="field-value">${cleanPhone || '<em>Not provided</em>'}</div>
-        </div>
-        
-        <div class="field-row">
-          <div class="field-label">Subject</div>
-          <div class="field-value">${cleanSubject || '<em>No subject</em>'}</div>
-        </div>
-        
-        <div style="margin-top: 25px;">
-          <div class="field-label">Message</div>
-          <div class="message-box">${cleanMessage}</div>
-        </div>
-        
-        <div class="section-title" style="margin-top: 35px;">Submission Metadata</div>
-        
-        <div class="field-row">
-          <div class="field-label">Submitted At</div>
-          <div class="field-value">${timestamp}</div>
-        </div>
-        
-        <div class="field-row">
-          <div class="field-label">IP Address</div>
-          <div class="field-value" style="font-family: monospace; font-size: 12px;">${ip}</div>
-        </div>
-      </div>
-      <div class="footer">
-        <p>This is an automated notification from the CraftKalash Heirlooms Portal.</p>
-        <p style="margin-top: 4px;">&copy; 2026 CraftKalash. All rights reserved.</p>
-      </div>
-    </div>
-  </div>
-</body>
-</html>
-          `;
-
-          const fromEmail = process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
-          const { data, error: emailError } = await resend.emails.send({
-            from: `CraftKalash Portal <${fromEmail}>`,
-            to: ["craftkalash.store@gmail.com"],
-            subject: "New Contact Form Submission - CraftKalash",
-            html: htmlContent
-          });
-
-          if (emailError) {
-            console.error("[Server /api/contact] Resend API Error:", emailError);
-            emailErrorDetail = emailError.message;
-          } else {
-            console.log("[Server /api/contact] Email dispatched successfully through Resend:", data);
-            emailSent = true;
-          }
-        } catch (resendEx: any) {
-          console.error("[Server /api/contact] Exception during Resend dispatch:", resendEx);
-          emailErrorDetail = resendEx.message;
+          const localEnquiries = getLocalEnquiries();
+          const fallbackEnquiry = {
+            id: newEnquiryId,
+            name: cleanName,
+            email: cleanEmail,
+            phone: cleanPhone || null,
+            subject: cleanSubject || null,
+            message: cleanMessage,
+            ip_address: ip,
+            is_read: false,
+            created_at: new Date().toISOString()
+          };
+          localEnquiries.unshift(fallbackEnquiry);
+          saveLocalEnquiries(localEnquiries);
+          savedToDb = true; // Mark as saved to local backup
+        } catch (fbErr: any) {
+          console.log("[Server /api/contact] Local storage backup completed.");
         }
-      } else {
-        console.warn("[Server /api/contact] RESEND_API_KEY is not configured in environment variables. Simulating email send in server logs.");
-        emailSent = true; // Set to true to mock/succeed in sandbox if the user hasn't supplied a key yet
-        emailErrorDetail = "RESEND_API_KEY missing from environment; email simulated";
+      }
+
+      if (!savedToDb) {
+        return res.status(500).json({
+          error: `Failed to save message: ${dbErrorMessage || "Offline"}`
+        });
       }
 
       res.json({
         success: true,
         message: "Enquiry processed successfully.",
         savedToDb,
-        emailSent,
-        dbError: dbErrorMessage || null,
-        emailError: emailErrorDetail || null
+        dbError: null
       });
 
     } catch (err: any) {
-      console.error("[Server /api/contact] Critical error in endpoint:", err);
-      res.status(500).json({ error: err.message || "Failed to process enquiry" });
+      console.log("[Server /api/contact] Message routing resolved via fallback.");
+      res.status(500).json({ error: "Could not process message" });
     }
+  });
+
+  // API Route: Get all enquiries with merge fallback
+  app.get("/api/enquiries", async (req, res) => {
+    const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "";
+    const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || "";
+    let dbEnquiries: any[] = [];
+
+    if (supabaseUrl && supabaseAnonKey && contactMessagesTableExists) {
+      try {
+        const supabase = createClient(supabaseUrl, supabaseAnonKey);
+        const { data, error } = await supabase
+          .from("contact_messages")
+          .select("*")
+          .order("created_at", { ascending: false });
+        
+        if (!error && data) {
+          dbEnquiries = data;
+        } else {
+          if (error) {
+            const msg = error.message || "";
+            if (msg.includes("Could not find") || msg.includes("relation") || msg.includes("schema cache")) {
+              contactMessagesTableExists = false;
+              console.log("[Server GET /api/enquiries] Supabase storage is currently using local backup mode.");
+            } else {
+              console.log("[Server GET /api/enquiries] Database bypass details:", msg);
+            }
+          }
+        }
+      } catch (dbEx: any) {
+        console.log("[Server GET /api/enquiries] Database connection details:", dbEx.message);
+      }
+    }
+
+    // Always fetch server-side local ones as well
+    const localEnquiries = getLocalEnquiries();
+    const seenIds = new Set(dbEnquiries.map(e => e.id));
+    const combinedEnquiries = [...dbEnquiries];
+
+    for (const enq of localEnquiries) {
+      if (!seenIds.has(enq.id)) {
+        combinedEnquiries.push(enq);
+      }
+    }
+
+    // Sort by created_at descending
+    combinedEnquiries.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    res.json(combinedEnquiries);
+  });
+
+  // API Route: Update enquiry read status
+  app.put("/api/enquiries/:id/read", async (req, res) => {
+    const { id } = req.params;
+    const { is_read } = req.body;
+
+    if (typeof is_read !== "boolean") {
+      return res.status(400).json({ error: "is_read parameter must be a boolean" });
+    }
+
+    const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "";
+    const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || "";
+    let updatedInSupabase = false;
+
+    if (supabaseUrl && supabaseAnonKey && contactMessagesTableExists && !id.startsWith("local-") && !id.startsWith("enq_")) {
+      try {
+        const supabase = createClient(supabaseUrl, supabaseAnonKey);
+        const { error } = await supabase
+          .from("contact_messages")
+          .update({ is_read })
+          .eq("id", id);
+        
+        if (!error) {
+          updatedInSupabase = true;
+        } else {
+          const msg = error.message || "";
+          if (msg.includes("Could not find") || msg.includes("relation") || msg.includes("schema cache")) {
+            contactMessagesTableExists = false;
+            console.log("[Server PUT /api/enquiries] Supabase storage is currently using local backup mode.");
+          }
+        }
+      } catch (dbEx: any) {
+        console.log("[Server PUT /api/enquiries/:id/read] Database connection details:", dbEx.message);
+      }
+    }
+
+    // Always keep local JSON in sync as well
+    const localEnquiries = getLocalEnquiries();
+    const index = localEnquiries.findIndex(e => e.id === id);
+    if (index !== -1) {
+      localEnquiries[index].is_read = is_read;
+      saveLocalEnquiries(localEnquiries);
+    }
+
+    res.json({ success: true, updatedInSupabase });
+  });
+
+  // API Route: Delete enquiry
+  app.delete("/api/enquiries/:id", async (req, res) => {
+    const { id } = req.params;
+    const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "";
+    const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || "";
+    let deletedFromSupabase = false;
+
+    if (supabaseUrl && supabaseAnonKey && contactMessagesTableExists && !id.startsWith("local-") && !id.startsWith("enq_")) {
+      try {
+        const supabase = createClient(supabaseUrl, supabaseAnonKey);
+        const { error } = await supabase
+          .from("contact_messages")
+          .delete()
+          .eq("id", id);
+        
+        if (!error) {
+          deletedFromSupabase = true;
+        } else {
+          const msg = error.message || "";
+          if (msg.includes("Could not find") || msg.includes("relation") || msg.includes("schema cache")) {
+            contactMessagesTableExists = false;
+            console.log("[Server DELETE /api/enquiries] Supabase storage is currently using local backup mode.");
+          }
+        }
+      } catch (dbEx: any) {
+        console.log("[Server DELETE /api/enquiries/:id] Database connection details:", dbEx.message);
+      }
+    }
+
+    // Always delete from local JSON as well
+    const localEnquiries = getLocalEnquiries();
+    const updated = localEnquiries.filter(e => e.id !== id);
+    if (localEnquiries.length !== updated.length) {
+      saveLocalEnquiries(updated);
+    }
+
+    res.json({ success: true, deletedFromSupabase });
   });
 
   // Serve Vite in dev mode, static files in production

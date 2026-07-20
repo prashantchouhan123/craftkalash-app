@@ -124,14 +124,14 @@ export default function Shop({ onQuickView }: ShopProps) {
     
     const ageLower = product.ageRange.toLowerCase();
     return selectedAgeGroups.some(group => {
-      if (group === 'infant') {
-        return ageLower.includes('month') || ageLower.includes('18 months') || ageLower.includes('12 months');
+      if (group === 'infant-toddler') {
+        return ageLower.includes('month') || ageLower.includes('10-24') || ageLower.includes('12 months');
       }
-      if (group === 'toddler') {
-        return ageLower.includes('18 months') || ageLower.includes('2 years') || ageLower.includes('3 years');
+      if (group === 'early-learners') {
+        return ageLower.includes('2 years') || ageLower.includes('3 years');
       }
-      if (group === 'preschool') {
-        return ageLower.includes('3 years') || ageLower.includes('4 years') || ageLower.includes('preschool');
+      if (group === 'all-ages') {
+        return ageLower.includes('all');
       }
       return false;
     });
@@ -354,8 +354,11 @@ export default function Shop({ onQuickView }: ShopProps) {
           {[
             { id: 'beech', name: 'Sustainable Beechwood' },
             { id: 'maple', name: 'Premium Maple Wood' },
-            { id: 'walnut', name: 'American Walnut' },
-            { id: 'linden', name: 'Linden Block Wood' }
+            { id: 'mango', name: 'Artisanal Mango Wood' },
+            { id: 'walnut', name: 'Mahogany & Walnut' },
+            { id: 'pine', name: 'Solid Pine Wood' },
+            { id: 'hardwood', name: 'Handcrafted Hardwood' },
+            { id: 'linden', name: 'Premium Linden Wood' }
           ].map(mat => {
             const checked = selectedMaterials.includes(mat.id);
             return (
@@ -382,9 +385,9 @@ export default function Shop({ onQuickView }: ShopProps) {
         </h3>
         <div className="space-y-2 text-xs text-brand-text-secondary">
           {[
-            { id: 'infant', name: 'Infants (0-12m)' },
-            { id: 'toddler', name: 'Toddlers (1-3y)' },
-            { id: 'preschool', name: 'Preschoolers (4y+)' }
+            { id: 'infant-toddler', name: 'Infants & Toddlers (0-2y)' },
+            { id: 'early-learners', name: 'Early Learners (3y+)' },
+            { id: 'all-ages', name: 'All Ages / Decor' }
           ].map(age => {
             const checked = selectedAgeGroups.includes(age.id);
             return (
