@@ -35,6 +35,7 @@ export default function Checkout() {
     addToast,
     clearCart,
     placeOrder,
+    updateRazorpayPayment,
     products
   } = useShop();
 
@@ -236,6 +237,23 @@ export default function Checkout() {
 
         const razorpayOrder = await createOrderRes.json();
 
+        // Create the pending order record in Supabase first (before starting payment)
+        const preOrder = await placeOrder(
+          addressPayload,
+          'RAZORPAY',
+          undefined,
+          undefined,
+          {
+            orderId: razorpayOrder.id,
+            paymentId: '',
+            signature: ''
+          }
+        );
+
+        if (!preOrder) {
+          throw new Error('Failed to record your pending order. Please try again.');
+        }
+
         // Get Razorpay Key ID
         let rzpKeyId = import.meta.env.VITE_RAZORPAY_KEY_ID || '';
         try {
@@ -277,41 +295,41 @@ export default function Checkout() {
 
               const verifyData = await verifyRes.json();
               if (verifyRes.ok && verifyData.verified) {
-                // Signature verified! Save verified order in database
-                const finalOrder = await placeOrder(
-                  addressPayload,
-                  'RAZORPAY',
-                  undefined,
-                  undefined,
-                  {
-                    orderId: response.razorpay_order_id,
-                    paymentId: response.razorpay_payment_id,
-                    signature: response.razorpay_signature
-                  }
+                // Signature verified! Update pending order in database to "paid"
+                const updateSuccess = await updateRazorpayPayment(
+                  preOrder.id,
+                  response.razorpay_order_id,
+                  response.razorpay_payment_id,
+                  response.razorpay_signature,
+                  'paid',
+                  'processing'
                 );
+
+                if (updateSuccess) {
+                  // Clear cart as payment is now successful
+                  await clearCart();
+                }
 
                 setIsProcessingPayment(false);
 
-                if (finalOrder) {
-                  const days = shippingMethod === 'standard' ? 4 : shippingMethod === 'express' ? 2 : 1;
-                  const deliveryDate = new Date();
-                  deliveryDate.setDate(deliveryDate.getDate() + days);
-                  const deliveryString = deliveryDate.toLocaleDateString('en-US', {
-                    weekday: 'long',
-                    month: 'short',
-                    day: 'numeric'
-                  });
+                const days = shippingMethod === 'standard' ? 4 : shippingMethod === 'express' ? 2 : 1;
+                const deliveryDate = new Date();
+                deliveryDate.setDate(deliveryDate.getDate() + days);
+                const deliveryString = deliveryDate.toLocaleDateString('en-US', {
+                  weekday: 'long',
+                  month: 'short',
+                  day: 'numeric'
+                });
 
-                  navigate('/order-success', {
-                    state: {
-                      orderNumber: finalOrder.order_number,
-                      estimatedDelivery: deliveryString,
-                      paymentMethod: 'RAZORPAY',
-                      totalAmount: grandTotal,
-                      orderId: finalOrder.id
-                    }
-                  });
-                }
+                navigate('/order-success', {
+                  state: {
+                    orderNumber: preOrder.order_number,
+                    estimatedDelivery: deliveryString,
+                    paymentMethod: 'RAZORPAY',
+                    totalAmount: grandTotal,
+                    orderId: preOrder.id
+                  }
+                });
               } else {
                 throw new Error(verifyData.error || 'Payment signature verification failed.');
               }
@@ -319,6 +337,15 @@ export default function Checkout() {
               setIsProcessingPayment(false);
               setPaymentError(vErr.message || 'Signature verification failed.');
               addToast(vErr.message || 'Payment verification failed.', 'error');
+              // Mark order as failed in Supabase
+              await updateRazorpayPayment(
+                preOrder.id,
+                response.razorpay_order_id || razorpayOrder.id,
+                response.razorpay_payment_id || '',
+                response.razorpay_signature || '',
+                'failed',
+                'cancelled'
+              );
             }
           },
           prefill: {
@@ -330,18 +357,36 @@ export default function Checkout() {
             color: "#B45309"
           },
           modal: {
-            ondismiss: function() {
+            ondismiss: async function() {
               setIsProcessingPayment(false);
               addToast('Payment cancelled by customer.', 'info');
+              // Mark order as failed / cancelled in Supabase
+              await updateRazorpayPayment(
+                preOrder.id,
+                razorpayOrder.id,
+                '',
+                '',
+                'failed',
+                'cancelled'
+              );
             }
           }
         };
 
         const rzp = new (window as any).Razorpay(options);
-        rzp.on('payment.failed', function (resp: any) {
+        rzp.on('payment.failed', async function (resp: any) {
           setIsProcessingPayment(false);
           setPaymentError(resp.error.description || 'Payment transaction failed.');
           addToast(resp.error.description || 'Payment failed.', 'error');
+          // Mark order as failed / cancelled in Supabase
+          await updateRazorpayPayment(
+            preOrder.id,
+            razorpayOrder.id,
+            '',
+            '',
+            'failed',
+            'cancelled'
+          );
         });
         rzp.open();
       } catch (err: any) {

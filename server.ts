@@ -40,7 +40,7 @@ async function startServer() {
 
   // API Route: Get Razorpay config (only public Key ID)
   app.get("/api/razorpay/config", (req, res) => {
-    const keyId = process.env.RAZORPAY_KEY_ID || process.env.VITE_RAZORPAY_KEY_ID || "";
+    const keyId = process.env.VITE_RAZORPAY_KEY_ID || "";
     res.json({ keyId });
   });
 
@@ -48,12 +48,12 @@ async function startServer() {
   app.post("/api/razorpay/create-order", async (req, res) => {
     try {
       const { amount, receipt } = req.body;
-      const keyId = process.env.RAZORPAY_KEY_ID || process.env.VITE_RAZORPAY_KEY_ID;
+      const keyId = process.env.VITE_RAZORPAY_KEY_ID;
       const keySecret = process.env.RAZORPAY_KEY_SECRET;
 
       if (!keyId || !keySecret) {
         return res.status(500).json({
-          error: "Razorpay credentials are not fully configured in the server environment variables. Please provide RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET."
+          error: "Razorpay credentials are not fully configured in the environment variables. Please provide VITE_RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET."
         });
       }
 

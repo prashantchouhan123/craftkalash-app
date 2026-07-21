@@ -75,6 +75,14 @@ interface ShopContextType {
   ) => Promise<Order | null>;
   updateOrderStatus: (orderId: string, status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled') => Promise<boolean>;
   updatePaymentStatus: (orderId: string, status: 'pending' | 'paid' | 'failed' | 'refunded' | 'Pending COD' | 'Payment Verification Pending') => Promise<boolean>;
+  updateRazorpayPayment: (
+    orderId: string,
+    razorpayOrderId: string,
+    razorpayPaymentId: string,
+    razorpaySignature: string,
+    paymentStatus: 'paid' | 'failed' | 'pending',
+    orderStatus?: 'pending' | 'processing' | 'cancelled'
+  ) => Promise<boolean>;
   refreshOrders: () => Promise<void>;
   
   // Custom API admin products addition
@@ -462,12 +470,15 @@ export function ShopProvider({ children }: { children: React.ReactNode }) {
       // Refresh orders list
       await refreshOrders();
       
-      // Clear local cart
-      setCart([]);
-      if (profile) {
-        await cartService.clearCart(profile.id).catch(err => {
-          console.error('Error clearing DB cart on checkout:', err);
-        });
+      // Clear local cart ONLY IF it's COD, UPI or a paid Razorpay order
+      const isPaidOrOther = paymentMethod !== 'RAZORPAY' || (razorpayDetails && razorpayDetails.signature);
+      if (isPaidOrOther) {
+        setCart([]);
+        if (profile) {
+          await cartService.clearCart(profile.id).catch(err => {
+            console.error('Error clearing DB cart on checkout:', err);
+          });
+        }
       }
       addToast(`Order ${newOrder.order_number} successfully registered! Check History.`, 'success');
       return newOrder;
@@ -491,6 +502,28 @@ export function ShopProvider({ children }: { children: React.ReactNode }) {
     if (success) {
       await refreshOrders();
       addToast(`Payment status updated to ${status}.`, 'success');
+    }
+    return success;
+  };
+
+  const updateRazorpayPayment = async (
+    orderId: string,
+    razorpayOrderId: string,
+    razorpayPaymentId: string,
+    razorpaySignature: string,
+    paymentStatus: 'paid' | 'failed' | 'pending',
+    orderStatus?: 'pending' | 'processing' | 'cancelled'
+  ): Promise<boolean> => {
+    const success = await orderService.updateRazorpayPayment(
+      orderId,
+      razorpayOrderId,
+      razorpayPaymentId,
+      razorpaySignature,
+      paymentStatus,
+      orderStatus
+    );
+    if (success) {
+      await refreshOrders();
     }
     return success;
   };
@@ -627,6 +660,7 @@ export function ShopProvider({ children }: { children: React.ReactNode }) {
         placeOrder,
         updateOrderStatus,
         updatePaymentStatus,
+        updateRazorpayPayment,
         refreshOrders,
         
         addAdminProduct,

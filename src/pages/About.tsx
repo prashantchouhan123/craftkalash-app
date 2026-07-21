@@ -17,16 +17,16 @@ export default function About() {
 
       {/* Hero Visual Row */}
       <div className="relative h-96 rounded-3xl overflow-hidden border border-brand-border/40 bg-white">
-        <div className="absolute inset-0 bg-black/30 z-10" />
+        <div className="absolute inset-0 bg-black/40 z-10" />
         <img
-          src="https://images.unsplash.com/photo-1608447714925-599deeb5a682?auto=format&fit=crop&q=80&w=1400"
-          alt="Artisanal woodturning workshop"
+          src="https://images.unsplash.com/photo-1540555700478-4be289fbecef?auto=format&fit=crop&q=80&w=1400"
+          alt="Artisanal woodworking studio"
           className="w-full h-full object-cover object-center"
           referrerPolicy="no-referrer"
         />
         <div className="absolute bottom-8 left-8 right-8 z-20 text-white max-w-lg space-y-2">
-          <span className="bg-brand-secondary text-white text-[10px] font-bold tracking-wider uppercase px-2.5 py-1 rounded-full">
-            Workshop Live
+          <span className="bg-brand-primary text-white text-[10px] font-extrabold tracking-widest uppercase px-3 py-1.5 rounded-full">
+            Artisanal Studio
           </span>
           <h2 className="text-xl sm:text-2xl font-bold tracking-tight">
             Every edge chamfered, every block polished by hand.

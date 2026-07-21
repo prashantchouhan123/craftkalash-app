@@ -17,7 +17,7 @@ export const CATEGORIES: Category[] = [
     id: 'puzzles-blocks',
     name: 'Puzzles & Blocks',
     description: 'Geometric stackers, nesting trees, and spatial logic timber blocks.',
-    image: 'https://images.unsplash.com/photo-1608447714925-599deeb5a682?auto=format&fit=crop&q=80&w=600'
+    image: 'https://images.unsplash.com/photo-1600132806370-bf17e65e942f?auto=format&fit=crop&q=80&w=600'
   },
   {
     id: 'vehicles-motion',

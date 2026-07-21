@@ -1399,7 +1399,7 @@ export const orderService = {
     }
     dbPaymentMethod = JSON.stringify(paymentObj);
 
-    const dbPaymentStatus = paymentMethod === 'RAZORPAY' ? 'paid' : 'pending';
+    const dbPaymentStatus = paymentMethod === 'RAZORPAY' ? (razorpayDetails?.signature ? 'paid' : 'pending') : 'pending';
 
     const localOrder: Order = {
       id: localId,
@@ -1569,6 +1569,79 @@ export const orderService = {
           const found = list.find(o => o.id === orderId);
           if (found) {
             found.payment_status = status;
+            localStorage.setItem('craftkalash_orders', JSON.stringify(list));
+            return true;
+          }
+        }
+      } catch {}
+      return false;
+    }
+  },
+
+  async updateRazorpayPayment(
+    orderId: string,
+    razorpayOrderId: string,
+    razorpayPaymentId: string,
+    razorpaySignature: string,
+    paymentStatus: 'paid' | 'failed' | 'pending',
+    orderStatus?: 'pending' | 'processing' | 'cancelled'
+  ): Promise<boolean> {
+    try {
+      ensureConfigured();
+      if (!isUUID(orderId)) return false;
+
+      const { data: ord, error: fetchErr } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('id', orderId)
+        .single();
+      
+      if (fetchErr || !ord) throw fetchErr || new Error('Order not found');
+
+      let paymentObj: any = {};
+      if (ord.payment_method && ord.payment_method.startsWith('{')) {
+        try {
+          paymentObj = JSON.parse(ord.payment_method);
+        } catch {}
+      } else {
+        paymentObj.method = 'RAZORPAY';
+      }
+
+      paymentObj.razorpay_order_id = razorpayOrderId;
+      paymentObj.razorpay_payment_id = razorpayPaymentId;
+      paymentObj.razorpay_signature = razorpaySignature;
+
+      const updatePayload: any = {
+        payment_method: JSON.stringify(paymentObj),
+        payment_status: paymentStatus
+      };
+
+      if (orderStatus) {
+        updatePayload.order_status = orderStatus;
+      }
+
+      const { error } = await supabase
+        .from('orders')
+        .update(updatePayload)
+        .eq('id', orderId);
+      
+      if (error) throw error;
+      return true;
+    } catch (err) {
+      console.warn('Database updateRazorpayPayment failed, updating local copy:', err);
+      try {
+        const stored = localStorage.getItem('craftkalash_orders');
+        if (stored) {
+          const list: Order[] = JSON.parse(stored);
+          const found = list.find(o => o.id === orderId);
+          if (found) {
+            found.payment_status = paymentStatus;
+            found.razorpay_order_id = razorpayOrderId;
+            found.razorpay_payment_id = razorpayPaymentId;
+            found.razorpay_signature = razorpaySignature;
+            if (orderStatus) {
+              found.order_status = orderStatus as any;
+            }
             localStorage.setItem('craftkalash_orders', JSON.stringify(list));
             return true;
           }

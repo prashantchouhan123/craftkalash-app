@@ -28,7 +28,7 @@ export default function Footer() {
             Heirloom-grade wooden toys sculpted by hand from sustainably-grown maple and beechwood. Built for sensory growth and screen-free imagination.
           </p>
           <div className="flex gap-4 text-brand-text-secondary">
-            <a href="https://instagram.com" target="_blank" rel="noreferrer" className="hover:text-brand-primary transition-colors">
+            <a href="https://www.instagram.com/craftkalash/" target="_blank" rel="noreferrer" className="hover:text-brand-primary transition-colors">
               <Instagram className="w-4 h-4" />
             </a>
           </div>
