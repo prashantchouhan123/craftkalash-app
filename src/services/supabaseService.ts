@@ -31,199 +31,244 @@ const ensureConfigured = () => {
 export const authService = {
   isConfigured: () => isSupabaseConfigured,
 
-  async register(fullName: string, email: string, phone: string, password: string): Promise<{ user: any; profile: Profile | null; error: string | null; needsVerification?: boolean }> {
+  async register(
+    fullName: string,
+    email: string,
+    phone: string,
+    password: string
+  ): Promise<{ user: any; profile: Profile | null; needsVerification?: boolean; error: string | null }> {
     ensureConfigured();
-    try {
-      const targetRedirectUrl = `${window.location.origin}/auth`;
-      console.log('[Supabase Auth] Initiating registration for email:', email);
-      console.log('[Supabase Auth] Computed emailRedirectTo URL:', targetRedirectUrl);
-      console.log('[Supabase Auth] REQUIRED SETUP CHECK: Ensure that this exact URL (or matching wildcards like http://localhost:3000/** or https://*.vercel.app/**) is added to your Supabase Project "Redirect URLs" under Authentication -> URL Configuration. Also verify that the Site URL matches your production domain.');
 
+    const redirectUrl = `${window.location.origin}/auth`;
+    console.log('[Supabase Auth] Registering user with emailRedirectTo:', redirectUrl);
+    console.log(
+      '[Supabase Auth Setup Guide]: Ensure your Supabase Dashboard -> Authentication -> URL Configuration has Redirect URLs:\n' +
+      '  - https://craftkalash.com/**\n' +
+      '  - https://www.craftkalash.com/**\n' +
+      `  - ${window.location.origin}/**`
+    );
+
+    try {
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: targetRedirectUrl,
+          emailRedirectTo: redirectUrl,
           data: {
             full_name: fullName,
             phone: phone
           }
         }
       });
-      
+
       if (error) {
-        console.error('[Supabase Auth ERROR during sign-up]:', error);
-        console.error('[Supabase Auth ERROR Code]:', error.status || 'unknown');
-        console.error('[Supabase Auth ERROR Message]:', error.message);
-        
-        // Troubleshooting diagnostic feedback for common Supabase email delivery issues
-        if (error.message?.toLowerCase().includes('rate limit') || error.status === 429) {
-          console.error('[Supabase Auth Diagnostician]: You have hit Supabase\'s default built-in SMTP rate limit of 3 emails/hour. To resolve this and enable unrestricted email delivery, please configure a custom SMTP service (SendGrid, Resend, Mailgun, Postmark, AWS SES, etc.) under Authentication -> Providers -> Email -> SMTP Settings in your Supabase Project Dashboard.');
-        } else if (error.message?.toLowerCase().includes('smtp') || error.message?.toLowerCase().includes('mail') || error.message?.toLowerCase().includes('deliver')) {
-          console.error('[Supabase Auth Diagnostician]: There is an active SMTP configuration error in your Supabase settings. Please verify your custom SMTP host, port, authentication credentials, and sender email under Authentication -> Providers -> Email -> SMTP Settings in your Supabase Dashboard.');
-        } else {
-          console.error('[Supabase Auth Diagnostician]: Please verify that "Confirm email" is ENABLED under Authentication -> Providers -> Email -> "Confirm email" in the Supabase Dashboard, and that your email provider credentials are fully active.');
-        }
-        throw error;
-      }
-      
-      console.log('[Supabase Auth] Registration call successful. Returned data:', {
-        userId: data.user?.id,
-        userEmail: data.user?.email,
-        emailConfirmedAt: data.user?.email_confirmed_at,
-        sessionExists: Boolean(data.session)
-      });
+        console.warn('[Supabase Auth signUp error]:', error.message);
+        const errMsgLower = (error.message || '').toLowerCase();
 
-      let profile: Profile | null = null;
-      const sessionActive = data.session !== null;
-      
-      if (data.user && sessionActive) {
-        const { data: profData, error: profErr } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', data.user.id)
-          .single();
-        if (!profErr && profData) {
-          profile = profData;
-        }
-      }
-
-      const needsVerification = !sessionActive || !data.user?.email_confirmed_at;
-      if (needsVerification) {
-        console.log('[Supabase Auth] User needs verification. A confirmation email was requested to be sent from Supabase with redirect URL:', targetRedirectUrl);
-      } else {
-        console.log('[Supabase Auth] No verification needed or user already verified immediately.');
-      }
-
-      return { user: data.user, profile, error: null, needsVerification };
-    } catch (err: any) {
-      console.error('[Supabase Auth] Caught unexpected exception in authService.register:', err);
-      return { user: null, profile: null, error: err.message || 'Signup failed' };
-    }
-  },
-
-  async login(email: string, password: string): Promise<{ user: any; profile: Profile | null; error: string | null; isNotVerified?: boolean }> {
-    ensureConfigured();
-    try {
-      console.log('[Supabase Auth] Attempting sign-in for email:', email);
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      
-      if (error) {
-        console.error('[Supabase Auth ERROR during login]:', error);
-        console.error('[Supabase Auth ERROR Code]:', error.status || 'unknown');
-        console.error('[Supabase Auth ERROR Message]:', error.message);
-
-        const isUnconfirmed = error.message.toLowerCase().includes('confirm') || 
-                              error.message.toLowerCase().includes('verify') ||
-                              (error.status === 400 && error.message.toLowerCase().includes('not confirmed'));
-        
-        if (isUnconfirmed) {
-          console.warn('[Supabase Auth WARNING]: Sign-in failed because the user email has not been verified yet.');
-          return { 
-            user: null, 
-            profile: null, 
-            error: 'Please verify your email before logging in.', 
-            isNotVerified: true 
+        if (
+          errMsgLower.includes('already registered') ||
+          errMsgLower.includes('already exists') ||
+          errMsgLower.includes('user_already_exists')
+        ) {
+          return {
+            user: null,
+            profile: null,
+            error: 'An account with this email already exists. Please log in.'
           };
         }
-        throw error;
+
+        if (errMsgLower.includes('rate limit') || (error as any).status === 429) {
+          return {
+            user: null,
+            profile: null,
+            error: 'Email rate limit reached (Supabase limits verification email attempts per hour). An account with this email may already exist. Please check your inbox for the verification email or click "Sign In" to log in.'
+          };
+        }
+
+        return { user: null, profile: null, error: error.message };
       }
 
-      if (data.user && !data.user.email_confirmed_at) {
-        console.warn('[Supabase Auth WARNING]: Signed-in user lacks an email confirmation timestamp. Logging out and enforcing verification screen.');
-        await supabase.auth.signOut();
-        return { 
-          user: null, 
-          profile: null, 
-          error: 'Please verify your email before logging in.', 
-          isNotVerified: true 
+      const user = data.user;
+      if (!user) {
+        return { user: null, profile: null, error: 'Registration failed. User creation returned empty.' };
+      }
+
+      // Supabase signals duplicate user (without error) by returning an empty identities array
+      if (Array.isArray(user.identities) && user.identities.length === 0) {
+        return {
+          user: null,
+          profile: null,
+          error: 'An account with this email already exists. Please log in.'
         };
       }
 
-      console.log('[Supabase Auth] Login successful. User ID:', data.user?.id);
+      // Check if email verification is required (session is null or user email_confirmed_at is null)
+      const needsVerification = !data.session || !user.email_confirmed_at;
 
+      return {
+        user,
+        profile: null,
+        needsVerification,
+        error: null
+      };
+    } catch (err: any) {
+      console.error('[Supabase Auth register exception]:', err);
+      return { user: null, profile: null, error: err.message || 'An unexpected registration error occurred.' };
+    }
+  },
+
+  async login(
+    email: string,
+    password: string
+  ): Promise<{ user: any; profile: Profile | null; isNotVerified?: boolean; error: string | null }> {
+    ensureConfigured();
+
+    try {
+      console.log('[Supabase Auth] Attempting sign-in for email:', email);
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+
+      if (error) {
+        console.warn('[Supabase Auth login error]:', error.message);
+        const errMsgLower = error.message.toLowerCase();
+        const isUnconfirmed =
+          errMsgLower.includes('confirm') ||
+          errMsgLower.includes('verify') ||
+          errMsgLower.includes('not confirmed');
+
+        if (isUnconfirmed) {
+          return {
+            user: null,
+            profile: null,
+            isNotVerified: true,
+            error: 'Please verify your email address before logging in.'
+          };
+        }
+
+        return { user: null, profile: null, error: error.message };
+      }
+
+      const user = data.user;
+      if (!user) {
+        return { user: null, profile: null, error: 'Login failed. User session unavailable.' };
+      }
+
+      // Explicit verification check: unverified users are strictly blocked from active sessions
+      if (!user.email_confirmed_at) {
+        await supabase.auth.signOut();
+        return {
+          user: null,
+          profile: null,
+          isNotVerified: true,
+          error: 'Please verify your email address before logging in.'
+        };
+      }
+
+      // Fetch profile from Supabase
       let profile: Profile | null = null;
-      if (data.user) {
-        const { data: profData, error: profErr } = await supabase
+      try {
+        const { data: profData } = await supabase
           .from('profiles')
           .select('*')
-          .eq('id', data.user.id)
+          .eq('id', user.id)
           .single();
-        if (profErr) {
-          console.error('[Supabase Auth ERROR loading profile]:', profErr);
-          throw profErr;
-        }
-        profile = profData;
+        profile = profData || null;
 
-        // Auto-upgrade admin emails to admin role in database
         if (isAdminEmail(email) && profile && profile.role !== 'admin') {
           console.log('[Supabase Auth] Auto-upgrading admin email to admin role:', email);
           const { data: updatedProf } = await supabase
             .from('profiles')
             .update({ role: 'admin' })
-            .eq('id', data.user.id)
+            .eq('id', user.id)
             .select()
             .single();
-          if (updatedProf) {
-            profile = updatedProf;
-          }
+          if (updatedProf) profile = updatedProf;
         }
+      } catch (e) {
+        console.warn('Profile fetch notice during login:', e);
       }
 
-      return { user: data.user, profile, error: null };
+      return { user, profile, error: null };
     } catch (err: any) {
-      console.error('[Supabase Auth] Caught unexpected exception in authService.login:', err);
-      const errMsg = err.message || 'Login failed';
-      const isUnconfirmed = errMsg.toLowerCase().includes('confirm') || 
-                            errMsg.toLowerCase().includes('verify');
-      
-      return { 
-        user: null, 
-        profile: null, 
-        error: isUnconfirmed ? 'Please verify your email before logging in.' : errMsg, 
-        isNotVerified: isUnconfirmed 
-      };
+      console.error('[Supabase Auth login exception]:', err);
+      return { user: null, profile: null, error: err.message || 'Login failed.' };
+    }
+  },
+
+  async resendVerificationEmail(email: string): Promise<{ success: boolean; error: string | null }> {
+    ensureConfigured();
+    try {
+      const redirectUrl = `${window.location.origin}/auth`;
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+        options: {
+          emailRedirectTo: redirectUrl
+        }
+      });
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+      return { success: true, error: null };
+    } catch (err: any) {
+      return { success: false, error: err.message || 'Failed to resend verification link.' };
     }
   },
 
   async logout(): Promise<{ error: string | null }> {
-    ensureConfigured();
-    const { error } = await supabase.auth.signOut();
-    return { error: error ? error.message : null };
+    try {
+      if (isSupabaseConfigured) {
+        await supabase.auth.signOut();
+      }
+    } catch (e) {
+      console.warn('Supabase signOut notice:', e);
+    }
+    return { error: null };
   },
 
   async getCurrentUser() {
     if (!isSupabaseConfigured) return null;
-    const { data } = await supabase.auth.getUser();
-    return data.user;
+    try {
+      const { data } = await supabase.auth.getUser();
+      if (data?.user && !data.user.email_confirmed_at) {
+        await supabase.auth.signOut();
+        return null;
+      }
+      return data?.user || null;
+    } catch (e) {
+      console.warn('Supabase auth.getUser notice:', e);
+      return null;
+    }
   },
 
   async getProfile(userId: string): Promise<Profile | null> {
-    ensureConfigured();
-    if (!isUUID(userId)) return null;
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
-    if (error) throw error;
+    if (!isSupabaseConfigured || !isUUID(userId)) return null;
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
 
-    if (data && data.role !== 'admin') {
-      const { data: userData } = await supabase.auth.getUser();
-      if (userData?.user?.email && isAdminEmail(userData.user.email)) {
-        const { data: updatedData } = await supabase
-          .from('profiles')
-          .update({ role: 'admin' })
-          .eq('id', userId)
-          .select()
-          .single();
-        if (updatedData) {
-          return updatedData;
+      if (!error && data) {
+        if (data.role !== 'admin') {
+          const { data: userData } = await supabase.auth.getUser();
+          if (userData?.user?.email && isAdminEmail(userData.user.email)) {
+            const { data: updatedData } = await supabase
+              .from('profiles')
+              .update({ role: 'admin' })
+              .eq('id', userId)
+              .select()
+              .single();
+            if (updatedData) return updatedData;
+          }
         }
+        return data;
       }
+    } catch (err) {
+      console.warn('Supabase getProfile error:', err);
     }
-
-    return data;
+    return null;
   },
 
   async updateProfile(userId: string, updates: Partial<Profile>): Promise<{ profile: Profile | null; error: string | null }> {
@@ -263,46 +308,6 @@ export const authService = {
     ensureConfigured();
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     return { success: !error, error: error ? error.message : null };
-  },
-
-  async resendVerificationEmail(email: string): Promise<{ success: boolean; error: string | null }> {
-    ensureConfigured();
-    try {
-      const targetRedirectUrl = `${window.location.origin}/auth`;
-      console.log('[Supabase Auth] Initiating verification email resend for email:', email);
-      console.log('[Supabase Auth] Computed emailRedirectTo URL:', targetRedirectUrl);
-      console.log('[Supabase Auth] REQUIRED SETUP CHECK: Ensure that this exact URL (or matching wildcards like http://localhost:3000/** or https://*.vercel.app/**) is added to your Supabase Project "Redirect URLs" under Authentication -> URL Configuration. Also verify that the Site URL matches your production domain.');
-
-      const { error } = await supabase.auth.resend({
-        type: 'signup',
-        email,
-        options: {
-          emailRedirectTo: targetRedirectUrl,
-        },
-      });
-
-      if (error) {
-        console.error('[Supabase Auth ERROR during resend]:', error);
-        console.error('[Supabase Auth ERROR Code]:', error.status || 'unknown');
-        console.error('[Supabase Auth ERROR Message]:', error.message);
-        
-        // Troubleshooting diagnostic feedback for common Supabase email delivery issues
-        if (error.message?.toLowerCase().includes('rate limit') || error.status === 429) {
-          console.error('[Supabase Auth Diagnostician]: You have hit Supabase\'s default built-in SMTP rate limit of 3 emails/hour. To resolve this and enable unrestricted email delivery, please configure a custom SMTP service (SendGrid, Resend, Mailgun, Postmark, AWS SES, etc.) under Authentication -> Providers -> Email -> SMTP Settings in your Supabase Project Dashboard.');
-        } else if (error.message?.toLowerCase().includes('smtp') || error.message?.toLowerCase().includes('mail') || error.message?.toLowerCase().includes('deliver')) {
-          console.error('[Supabase Auth Diagnostician]: There is an active SMTP configuration error in your Supabase settings. Please verify your custom SMTP host, port, authentication credentials, and sender email under Authentication -> Providers -> Email -> SMTP Settings in your Supabase Dashboard.');
-        } else {
-          console.error('[Supabase Auth Diagnostician]: Please verify that "Confirm email" is ENABLED under Authentication -> Providers -> Email -> "Confirm email" in the Supabase Dashboard, and that your email provider credentials are fully active.');
-        }
-        return { success: false, error: error.message };
-      }
-
-      console.log('[Supabase Auth] Verification email resend call returned success.');
-      return { success: true, error: null };
-    } catch (err: any) {
-      console.error('[Supabase Auth] Caught unexpected exception in authService.resendVerificationEmail:', err);
-      return { success: false, error: err.message || 'Failed to resend verification email.' };
-    }
   }
 };
 

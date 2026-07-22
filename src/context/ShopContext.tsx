@@ -19,6 +19,7 @@ interface ShopContextType {
   isAdmin: boolean;
   register: (fullName: string, email: string, phone: string, password: string) => Promise<{ success: boolean; needsVerification?: boolean; error?: string }>;
   login: (email: string, password: string) => Promise<{ success: boolean; isNotVerified?: boolean; error?: string }>;
+  resendVerificationEmail: (email: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   updateProfile: (updates: Partial<Profile>) => Promise<boolean>;
   changeRole: (role: 'customer' | 'admin') => Promise<void>;
@@ -151,41 +152,31 @@ export function ShopProvider({ children }: { children: React.ReactNode }) {
     loadCatalog();
   }, []);
 
-  // Check Active Auth Session on Mount
+  // Check Active Auth Session on Mount & Subscribe to Auth Changes
   useEffect(() => {
     async function checkAuth() {
       try {
         const activeUser = await authService.getCurrentUser();
-        if (activeUser) {
-          if (!activeUser.email_confirmed_at) {
-            await authService.logout();
-            setUser(null);
-            setProfile(null);
-            return;
-          }
+        if (activeUser && activeUser.email_confirmed_at) {
           setUser(activeUser);
           const activeProfile = await authService.getProfile(activeUser.id);
           if (activeProfile) {
-            // Safe fallback and auto-sync for admin emails
             if (isAdminEmail(activeUser.email)) {
               activeProfile.role = 'admin';
             }
             setProfile(activeProfile);
             setIsAdmin(activeProfile.role === 'admin');
             
-            // Sync Wishlist from Supabase/Fallback DB
             const userWishlist = await wishlistService.getWishlist(activeUser.id);
             if (userWishlist.length > 0) {
               setWishlist(userWishlist);
             }
 
-            // Sync Cart from Supabase
             const userCart = await cartService.getCart(activeUser.id);
             if (userCart.length > 0) {
               setCart(userCart);
             }
             
-            // Sync Orders
             const userOrders = activeProfile.role === 'admin'
               ? await orderService.getAllOrders()
               : await orderService.getOrders(activeUser.id);
@@ -230,18 +221,20 @@ export function ShopProvider({ children }: { children: React.ReactNode }) {
       addToast(res.error, 'error');
       return { success: false, error: res.error };
     }
-    
+
     if (res.needsVerification) {
-      addToast('Please verify your email address. A verification link has been sent.', 'info');
+      addToast('Registration successful! Please check your email to verify your account before logging in.', 'info');
       return { success: true, needsVerification: true };
     }
 
-    if (res.user && isAdminEmail(res.user.email) && res.profile) {
-      res.profile.role = 'admin';
+    if (res.user) {
+      if (isAdminEmail(res.user.email) && res.profile) {
+        res.profile.role = 'admin';
+      }
+      setUser(res.user);
+      setProfile(res.profile);
+      setIsAdmin(res.profile?.role === 'admin');
     }
-    setUser(res.user);
-    setProfile(res.profile);
-    setIsAdmin(res.profile?.role === 'admin');
     addToast('Account created successfully! Welcome to CraftKalash.', 'success');
     return { success: true };
   };
@@ -249,12 +242,8 @@ export function ShopProvider({ children }: { children: React.ReactNode }) {
   const login = async (email: string, password: string) => {
     const res = await authService.login(email, password);
     if (res.error) {
-      if (res.isNotVerified) {
-        addToast(res.error, 'error');
-        return { success: false, error: res.error, isNotVerified: true };
-      }
       addToast(res.error, 'error');
-      return { success: false, error: res.error };
+      return { success: false, isNotVerified: res.isNotVerified, error: res.error };
     }
 
     if (res.user && isAdminEmail(res.user.email) && res.profile) {
@@ -264,7 +253,6 @@ export function ShopProvider({ children }: { children: React.ReactNode }) {
     setProfile(res.profile);
     setIsAdmin(res.profile?.role === 'admin');
     
-    // Refresh user-specific details on successful login
     if (res.profile) {
       const userWishlist = await wishlistService.getWishlist(res.profile.id);
       setWishlist(userWishlist);
@@ -279,6 +267,16 @@ export function ShopProvider({ children }: { children: React.ReactNode }) {
     }
     
     addToast('Logged in successfully.', 'success');
+    return { success: true };
+  };
+
+  const resendVerificationEmail = async (email: string) => {
+    const res = await authService.resendVerificationEmail(email);
+    if (res.error) {
+      addToast(res.error, 'error');
+      return { success: false, error: res.error };
+    }
+    addToast('Verification email resent! Please check your inbox.', 'success');
     return { success: true };
   };
 
@@ -622,6 +620,7 @@ export function ShopProvider({ children }: { children: React.ReactNode }) {
         isAdmin,
         register,
         login,
+        resendVerificationEmail,
         logout,
         updateProfile,
         changeRole,
