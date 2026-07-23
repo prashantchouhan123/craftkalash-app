@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Product, Category, CartItem, ToastMessage, Profile, Address, Order } from '../types';
+import { saveRedirectUrl } from '../utils/redirect';
 import { 
   authService, 
   productService, 
@@ -412,7 +413,9 @@ export function ShopProvider({ children }: { children: React.ReactNode }) {
         addToast('Wishlist syncing failed. Please try again.', 'error');
       }
     } else {
-      addToast('Please login to add items to your wishlist.', 'error');
+      saveRedirectUrl();
+      addToast('Please login to save items to your wishlist.', 'info');
+      window.location.href = '/auth';
     }
   };
 

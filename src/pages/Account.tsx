@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useShop } from '../context/ShopContext';
+import { saveRedirectUrl } from '../utils/redirect';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   User, 
@@ -83,6 +84,7 @@ export default function Account() {
   // Sync profile values
   useEffect(() => {
     if (!user) {
+      saveRedirectUrl('/account');
       navigate('/auth');
     } else if (profile) {
       setFullName(profile.full_name);

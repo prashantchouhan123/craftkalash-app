@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../services/supabaseService';
+import { getAndClearRedirectUrl } from '../utils/redirect';
 
 export default function Auth() {
   const { login, register, resendVerificationEmail, user } = useShop();
@@ -121,7 +122,8 @@ export default function Auth() {
   // Auto redirect if logged in
   useEffect(() => {
     if (user && user.email_confirmed_at && isLogin) {
-      navigate('/account');
+      const targetUrl = getAndClearRedirectUrl() || '/account';
+      navigate(targetUrl, { replace: true });
     }
   }, [user, navigate, isLogin]);
 
@@ -168,7 +170,8 @@ export default function Auth() {
       } else if (isLogin) {
         const res = await login(email, password);
         if (res.success) {
-          navigate('/account');
+          const targetUrl = getAndClearRedirectUrl() || '/account';
+          navigate(targetUrl);
         } else {
           const errLower = (res.error || '').toLowerCase();
           const isUnverified = res.isNotVerified || errLower.includes('verify');
@@ -197,7 +200,8 @@ export default function Auth() {
               message: `Verification link sent to ${email}. Please verify your email before logging in.`
             });
           } else {
-            navigate('/');
+            const targetUrl = getAndClearRedirectUrl() || '/account';
+            navigate(targetUrl);
           }
         } else {
           const errLower = (res.error || '').toLowerCase();

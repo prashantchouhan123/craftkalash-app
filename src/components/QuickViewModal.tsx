@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { Product, Review } from '../types';
 import { useShop } from '../context/ShopContext';
+import { saveRedirectUrl } from '../utils/redirect';
 import { REVIEWS } from '../data/products';
 import { reviewsService } from '../services/supabaseService';
 import { 
@@ -32,6 +34,7 @@ interface QuickViewModalProps {
 }
 
 export default function QuickViewModal({ product, onClose, onSwitchProduct }: QuickViewModalProps) {
+  const navigate = useNavigate();
   const { products, addToCart, toggleWishlist, isInWishlist, addToast, profile } = useShop();
   const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -104,6 +107,12 @@ export default function QuickViewModal({ product, onClose, onSwitchProduct }: Qu
   const handleBuyNow = () => {
     addToCart(product, quantity);
     onClose();
+    if (!profile) {
+      saveRedirectUrl('/checkout');
+      addToast('Please sign in to proceed with checkout.', 'info');
+      navigate('/auth');
+      return;
+    }
     // Simulate immediately opening cart drawer for checkout flow
     setTimeout(() => {
       const cartBtn = document.getElementById('cart-trigger-button');
@@ -120,7 +129,10 @@ export default function QuickViewModal({ product, onClose, onSwitchProduct }: Qu
     }
 
     if (!profile) {
-      addToast('Please login to leave a review.', 'error');
+      saveRedirectUrl();
+      addToast('Please login to leave a review.', 'info');
+      onClose();
+      navigate('/auth');
       return;
     }
 

@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { couponsService } from '../services/supabaseService';
 import { useNavigate } from 'react-router-dom';
+import { saveRedirectUrl } from '../utils/redirect';
 
 export default function CartDrawer() {
   const {
@@ -124,6 +125,7 @@ export default function CartDrawer() {
   };
 
   const handleGoToAuth = () => {
+    saveRedirectUrl('/checkout');
     setIsCartOpen(false);
     navigate('/auth');
   };

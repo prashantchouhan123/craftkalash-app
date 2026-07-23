@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, Link, useNavigate, useLocation } from 'react-router-dom';
 import { useShop } from '../context/ShopContext';
+import { saveRedirectUrl } from '../utils/redirect';
 import { Search, Heart, ShoppingBag, Menu, X, Globe, ChevronDown, Award, User } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { CATEGORIES } from '../data/products';
@@ -195,6 +196,11 @@ export default function Navbar() {
               {/* Account Profile Trigger */}
               <Link
                 to={user ? "/account" : "/auth"}
+                onClick={() => {
+                  if (!user) {
+                    saveRedirectUrl();
+                  }
+                }}
                 className="p-1.5 rounded-full hover:bg-brand-bg/60 text-brand-text-primary/95 transition-all duration-200 flex items-center justify-center"
                 aria-label="Account details"
                 title={profile ? `Account: ${profile.full_name}` : "Access Heirlooms"}

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
-import { ShopProvider } from './context/ShopContext';
+import { ShopProvider, useShop } from './context/ShopContext';
 import { supabase } from './lib/supabase';
+import { saveSelectedProduct, getSavedProduct, clearSavedProduct } from './utils/redirect';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import CartDrawer from './components/CartDrawer';
@@ -60,7 +61,73 @@ function AuthRecoveryListener() {
 }
 
 function AppContent() {
-  const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
+  const { products } = useShop();
+  const location = useLocation();
+
+  // Initialize selected product state from sessionStorage if present
+  const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(() => {
+    try {
+      const searchParams = new URLSearchParams(window.location.search);
+      const queryId = searchParams.get('product') || searchParams.get('productId');
+      const saved = getSavedProduct();
+      if (queryId && saved?.data && String(saved.data.id) === String(queryId)) {
+        return saved.data;
+      }
+      if (saved?.data) {
+        return saved.data;
+      }
+    } catch (e) {
+      console.warn('Initial product load error:', e);
+    }
+    return null;
+  });
+
+  // Sync quickViewProduct with URL parameter / path and loaded products list
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const queryId = searchParams.get('product') || searchParams.get('productId');
+    const pathMatch = location.pathname.match(/^\/product\/([^/]+)/);
+    const pathId = pathMatch ? pathMatch[1] : null;
+    const targetId = queryId || pathId || getSavedProduct()?.id;
+
+    if (targetId) {
+      const match = products.find((p) => String(p.id) === String(targetId));
+      if (match) {
+        if (!quickViewProduct || String(quickViewProduct.id) !== String(match.id)) {
+          setQuickViewProduct(match);
+          saveSelectedProduct(match);
+        }
+      } else {
+        const saved = getSavedProduct();
+        if (!quickViewProduct && saved?.data && String(saved.data.id) === String(targetId)) {
+          setQuickViewProduct(saved.data);
+        }
+      }
+    }
+  }, [location.search, location.pathname, products, quickViewProduct]);
+
+  const handleQuickView = (product: Product | null) => {
+    setQuickViewProduct(product);
+    if (product) {
+      saveSelectedProduct(product);
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('product') !== String(product.id)) {
+        params.set('product', String(product.id));
+        const newUrl = `${window.location.pathname}?${params.toString()}${window.location.hash}`;
+        window.history.replaceState(null, '', newUrl);
+      }
+    } else {
+      clearSavedProduct();
+      const params = new URLSearchParams(window.location.search);
+      if (params.has('product') || params.has('productId')) {
+        params.delete('product');
+        params.delete('productId');
+        const searchStr = params.toString();
+        const newUrl = window.location.pathname + (searchStr ? `?${searchStr}` : '') + window.location.hash;
+        window.history.replaceState(null, '', newUrl);
+      }
+    }
+  };
 
   return (
     <div className="min-h-screen flex flex-col justify-between selection:bg-brand-primary/20 bg-brand-bg/10 antialiased">
@@ -74,15 +141,16 @@ function AppContent() {
       
       <main className="flex-grow">
         <Routes>
-          <Route path="/" element={<Home onQuickView={setQuickViewProduct} />} />
-          <Route path="/shop" element={<Shop onQuickView={setQuickViewProduct} />} />
+          <Route path="/" element={<Home onQuickView={handleQuickView} />} />
+          <Route path="/shop" element={<Shop onQuickView={handleQuickView} />} />
+          <Route path="/product/:id" element={<Shop onQuickView={handleQuickView} />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/account" element={<Account />} />
           <Route path="/admin" element={<Admin />} />
-          <Route path="/cart" element={<Cart onQuickView={setQuickViewProduct} />} />
+          <Route path="/cart" element={<Cart onQuickView={handleQuickView} />} />
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/order-success" element={<OrderSuccess />} />
         </Routes>
@@ -93,8 +161,8 @@ function AppContent() {
       {/* Quick Specs modal */}
       <QuickViewModal
         product={quickViewProduct}
-        onClose={() => setQuickViewProduct(null)}
-        onSwitchProduct={setQuickViewProduct}
+        onClose={() => handleQuickView(null)}
+        onSwitchProduct={(p) => handleQuickView(p)}
       />
     </div>
   );
