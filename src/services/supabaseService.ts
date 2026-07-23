@@ -20,8 +20,20 @@ export const isAdminEmail = (email?: string): boolean => {
 // Guard function to ensure Supabase is configured
 const ensureConfigured = () => {
   if (!isSupabaseConfigured) {
-    throw new Error('Supabase is not configured. Please check your environment variables (VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY).');
+    throw new Error('Supabase is not configured yet. Please set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your environment variables.');
   }
+};
+
+const formatAuthError = (err: any): string => {
+  if (!err) return 'An unexpected authentication error occurred.';
+  const msg = typeof err === 'string' ? err : err.message || '';
+  if (!msg || msg === '{}') return 'An unexpected authentication error occurred.';
+
+  const msgLower = msg.toLowerCase();
+  if (msgLower.includes('failed to fetch') || msgLower.includes('networkerror') || msgLower.includes('fetch failed')) {
+    return 'Unable to connect to Supabase authentication server. Please check your internet connection or verify VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in project settings.';
+  }
+  return msg;
 };
 
 // ==========================================
@@ -41,12 +53,6 @@ export const authService = {
 
     const redirectUrl = `${window.location.origin}/auth`;
     console.log('[Supabase Auth] Registering user with emailRedirectTo:', redirectUrl);
-    console.log(
-      '[Supabase Auth Setup Guide]: Ensure your Supabase Dashboard -> Authentication -> URL Configuration has Redirect URLs:\n' +
-      '  - https://craftkalash.com/**\n' +
-      '  - https://www.craftkalash.com/**\n' +
-      `  - ${window.location.origin}/**`
-    );
 
     try {
       const { data, error } = await supabase.auth.signUp({
@@ -85,7 +91,7 @@ export const authService = {
           };
         }
 
-        return { user: null, profile: null, error: error.message };
+        return { user: null, profile: null, error: formatAuthError(error) };
       }
 
       const user = data.user;
@@ -113,7 +119,7 @@ export const authService = {
       };
     } catch (err: any) {
       console.error('[Supabase Auth register exception]:', err);
-      return { user: null, profile: null, error: err.message || 'An unexpected registration error occurred.' };
+      return { user: null, profile: null, error: formatAuthError(err) };
     }
   },
 
@@ -144,7 +150,7 @@ export const authService = {
           };
         }
 
-        return { user: null, profile: null, error: error.message };
+        return { user: null, profile: null, error: formatAuthError(error) };
       }
 
       const user = data.user;
@@ -190,7 +196,7 @@ export const authService = {
       return { user, profile, error: null };
     } catch (err: any) {
       console.error('[Supabase Auth login exception]:', err);
-      return { user: null, profile: null, error: err.message || 'Login failed.' };
+      return { user: null, profile: null, error: formatAuthError(err) };
     }
   },
 
@@ -207,11 +213,11 @@ export const authService = {
       });
 
       if (error) {
-        return { success: false, error: error.message };
+        return { success: false, error: formatAuthError(error) };
       }
       return { success: true, error: null };
     } catch (err: any) {
-      return { success: false, error: err.message || 'Failed to resend verification link.' };
+      return { success: false, error: formatAuthError(err) };
     }
   },
 
@@ -298,9 +304,23 @@ export const authService = {
 
   async forgotPassword(email: string): Promise<{ success: boolean; error: string | null }> {
     ensureConfigured();
+    const cleanOrigin = window.location.origin.replace(/\/$/, '');
+    const redirectUrl = `${cleanOrigin}/reset-password`;
+
+    console.log('[authService.forgotPassword] Calling resetPasswordForEmail for email:', email);
+    console.log('[authService.forgotPassword] redirectTo URL:', redirectUrl);
+
+    sessionStorage.setItem('reset_password_email_sent', 'true');
+    sessionStorage.setItem('is_password_recovery', 'true');
+
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
+      redirectTo: redirectUrl,
     });
+    if (error) {
+      console.error('[authService.forgotPassword] Error sending password reset email:', error);
+    } else {
+      console.log('[authService.forgotPassword] Password reset email sent successfully with redirectTo:', redirectUrl);
+    }
     return { success: !error, error: error ? error.message : null };
   },
 

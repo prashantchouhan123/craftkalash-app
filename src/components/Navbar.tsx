@@ -74,25 +74,19 @@ export default function Navbar() {
   const isDocked = isScrolled || !isHomepage;
 
   return (
-    <>
+    <div className="sticky top-0 z-50 w-full transition-all duration-300">
       {/* Upper Promo Banner */}
-      <div className="bg-brand-primary text-white text-[11px] font-semibold tracking-widest text-center py-2 px-4 uppercase flex items-center justify-center gap-1.5 z-50 relative">
+      <div className="bg-brand-primary text-white text-[11px] font-semibold tracking-widest text-center py-2 px-4 uppercase flex items-center justify-center gap-1.5 relative">
         <Award className="w-3.5 h-3.5 text-brand-accent animate-pulse" />
         Free shipping on orders over ₹1500 • Heirloom Handcrafted Wooden Art
       </div>
 
-      <header
-        className={`fixed left-0 right-0 z-40 transition-all duration-300 ${
-          isDocked
-            ? 'top-0 px-0 max-w-full'
-            : 'top-10 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto'
-        }`}
-      >
+      <header className={`w-full transition-all duration-300 ${!isDocked ? 'px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto py-2' : ''}`}>
         <div
           className={`transition-all duration-300 border ${
             isDocked
               ? 'bg-white/95 backdrop-blur-md shadow-md border-brand-border/80 py-3 rounded-none border-x-0 border-t-0'
-              : 'bg-white/30 backdrop-blur-xs border-white/20 py-4 rounded-2xl'
+              : 'bg-white/90 backdrop-blur-md border-white/40 py-3.5 rounded-2xl shadow-xs'
           }`}
         >
           <div className="px-6 flex items-center justify-between">
@@ -344,6 +338,6 @@ export default function Navbar() {
           </>
         )}
       </AnimatePresence>
-    </>
+    </div>
   );
 }
