@@ -421,18 +421,18 @@ export const productService = {
         if (matchedLocal) {
           return {
             ...p,
-            name: matchedLocal.name,
+            name: p.name || matchedLocal.name,
             category: catSlug,
             price: p.price ?? matchedLocal.price,
             originalPrice: p.originalPrice ?? matchedLocal.originalPrice,
-            description: matchedLocal.description,
-            details: matchedLocal.details || [],
-            materials: matchedLocal.materials || [],
-            dimensions: matchedLocal.dimensions || p.dimensions,
-            ageRange: matchedLocal.ageRange || p.ageRange,
-            featured: matchedLocal.featured ?? p.featured,
-            bestSeller: matchedLocal.bestSeller ?? p.bestSeller,
-            isNew: matchedLocal.isNew ?? p.isNew,
+            description: p.description || matchedLocal.description,
+            details: (p.details && p.details.length > 0) ? p.details : (matchedLocal.details || []),
+            materials: (p.materials && p.materials.length > 0) ? p.materials : (matchedLocal.materials || []),
+            dimensions: p.dimensions || matchedLocal.dimensions,
+            ageRange: p.ageRange || matchedLocal.ageRange,
+            featured: p.featured ?? matchedLocal.featured,
+            bestSeller: p.bestSeller ?? matchedLocal.bestSeller,
+            isNew: p.isNew ?? matchedLocal.isNew,
             sku: p.sku || matchedLocal.sku,
             rating: p.rating ?? matchedLocal.rating ?? 4.8,
             reviewsCount: p.reviewsCount ?? matchedLocal.reviewsCount ?? 12
@@ -506,10 +506,22 @@ export const productService = {
       }
     }
 
-    // Merge with local offline/mock storage states
+    // Merge with server & local offline/mock storage states
     const localAdded = getLocalAddedProducts();
     const localDeleted = getLocalDeletedIds();
     const localUpdated = getLocalUpdatedProducts();
+
+    try {
+      const sRes = await fetch('/api/products/store');
+      if (sRes.ok) {
+        const serverStore = await sRes.json();
+        if (serverStore && typeof serverStore === 'object') {
+          Object.assign(localUpdated, serverStore);
+        }
+      }
+    } catch (sErr) {
+      // Server store fetch fallback silent
+    }
 
     let mergedList = [...baseList];
 
@@ -525,10 +537,14 @@ export const productService = {
 
     // 3. Apply updated fields
     mergedList = mergedList.map(p => {
-      if (localUpdated[p.id]) {
+      const matchKey = Object.keys(localUpdated).find(k => 
+        String(k) === String(p.id) || 
+        (p.sku && localUpdated[k]?.sku && String(localUpdated[k].sku) === String(p.sku))
+      );
+      if (matchKey && localUpdated[matchKey]) {
         return {
           ...p,
-          ...localUpdated[p.id]
+          ...localUpdated[matchKey]
         };
       }
       return p;
@@ -575,14 +591,25 @@ export const productService = {
 
     try {
       ensureConfigured();
+      const insertPayload: any = {
+        name: newProduct.name,
+        price: Number(newProduct.price),
+        description: newProduct.description,
+        image: newProduct.image,
+        sku: newProduct.sku,
+        stock: Number(newProduct.stock),
+        featured: Boolean(newProduct.featured),
+        category_id: category_id || null,
+        status: 'published',
+        slug: slug
+      };
+      if (newProduct.id && isUUID(newProduct.id)) {
+        insertPayload.id = newProduct.id;
+      }
+
       const { data, error } = await supabase
         .from('products')
-        .insert({
-          ...product,
-          slug,
-          category_id,
-          status: 'published'
-        })
+        .insert(insertPayload)
         .select()
         .single();
       if (error) throw error;
@@ -605,43 +632,119 @@ export const productService = {
   },
 
   async updateProduct(id: string, updates: Partial<Product>): Promise<{ data: Product | null; error: string | null }> {
+    // 1. Save to client local storage cache immediately
+    const localUpdated = getLocalUpdatedProducts();
+    localUpdated[id] = {
+      ...(localUpdated[id] || {}),
+      ...updates
+    };
+    localStorage.setItem('craftkalash_updated_products', JSON.stringify(localUpdated));
+
+    // 2. Call server endpoint to update server-side store & database
+    try {
+      await fetch('/api/products/update', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, updates })
+      });
+    } catch (apiErr) {
+      console.warn('Server endpoint product update failed:', apiErr);
+    }
+
+    // 3. Direct client Supabase update payload (clean numbers and booleans)
+    const cleanPayload: Record<string, any> = {};
+    if (updates.price !== undefined) cleanPayload.price = Number(updates.price);
+    if (updates.name !== undefined) cleanPayload.name = updates.name;
+    if (updates.description !== undefined) cleanPayload.description = updates.description;
+    if (updates.image !== undefined) cleanPayload.image = updates.image;
+    if (updates.sku !== undefined) cleanPayload.sku = updates.sku;
+    if (updates.featured !== undefined) cleanPayload.featured = Boolean(updates.featured);
+    if (updates.stock !== undefined) cleanPayload.stock = Number(updates.stock);
+    if (updates.category) {
+      const catId = CATEGORY_SLUG_TO_ID[updates.category];
+      if (catId) cleanPayload.category_id = catId;
+    }
+
     try {
       ensureConfigured();
-      const payload: any = { ...updates };
-      if (updates.category) {
-        payload.category_id = CATEGORY_SLUG_TO_ID[updates.category] || null;
+      if (Object.keys(cleanPayload).length > 0) {
+        let dbSuccess = false;
+
+        // Attempt 1: Update by ID
+        const { data: updatedRows, error: idError } = await supabase
+          .from('products')
+          .update(cleanPayload)
+          .eq('id', id)
+          .select();
+
+        if (!idError && updatedRows && updatedRows.length > 0) {
+          dbSuccess = true;
+        }
+
+        // Attempt 2: Update by SKU if ID match didn't find any row
+        if (!dbSuccess && updates.sku) {
+          const { data: skuRows, error: skuErr } = await supabase
+            .from('products')
+            .update(cleanPayload)
+            .eq('sku', updates.sku)
+            .select();
+
+          if (!skuErr && skuRows && skuRows.length > 0) {
+            dbSuccess = true;
+          }
+        }
+
+        // Attempt 3: Update by Name if SKU match didn't find any row
+        if (!dbSuccess && updates.name) {
+          const { data: nameRows, error: nameErr } = await supabase
+            .from('products')
+            .update(cleanPayload)
+            .eq('name', updates.name)
+            .select();
+
+          if (!nameErr && nameRows && nameRows.length > 0) {
+            dbSuccess = true;
+          }
+        }
+
+        // Attempt 4: If row doesn't exist in Supabase DB at all, insert it now with the updated price!
+        if (!dbSuccess) {
+          const slug = (updates.name || 'product')
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/(^-|-$)+/g, '');
+
+          const insertPayload: any = {
+            name: updates.name || 'Product',
+            price: Number(updates.price) || 0,
+            description: updates.description || '',
+            image: updates.image || '',
+            sku: updates.sku || '',
+            stock: Number(updates.stock) || 15,
+            featured: Boolean(updates.featured),
+            category_id: CATEGORY_SLUG_TO_ID[updates.category || ''] || null,
+            status: 'published',
+            slug: slug,
+            ...cleanPayload
+          };
+
+          if (isUUID(id)) {
+            insertPayload.id = id;
+          }
+
+          await supabase
+            .from('products')
+            .insert(insertPayload);
+        }
       }
-      const { data, error } = await supabase
-        .from('products')
-        .update(payload)
-        .eq('id', id)
-        .select()
-        .single();
-      if (error) throw error;
-
-      const localUpdated = getLocalUpdatedProducts();
-      localUpdated[id] = {
-        ...(localUpdated[id] || {}),
-        ...updates
-      };
-      localStorage.setItem('craftkalash_updated_products', JSON.stringify(localUpdated));
-
-      return { data: data || null, error: null };
     } catch (err: any) {
-      console.warn('Database updateProduct failed, falling back to local action:', err);
-
-      const localUpdated = getLocalUpdatedProducts();
-      localUpdated[id] = {
-        ...(localUpdated[id] || {}),
-        ...updates
-      };
-      localStorage.setItem('craftkalash_updated_products', JSON.stringify(localUpdated));
-
-      const allProducts = await this.getProducts();
-      const found = allProducts.find(p => p.id === id);
-
-      return { data: found || null, error: null };
+      console.warn('Direct database updateProduct notice:', err);
     }
+
+    const allProducts = await this.getProducts();
+    const found = allProducts.find(p => p.id === id || (p.sku && updates.sku && p.sku === updates.sku));
+
+    return { data: found || null, error: null };
   },
 
   async deleteProduct(id: string): Promise<{ success: boolean; error: string | null }> {

@@ -10,7 +10,28 @@ import fs from "fs";
 dotenv.config();
 
 const ENQUIRIES_FILE = path.join(process.cwd(), "enquiries.json");
+const PRODUCTS_STORE_FILE = path.join(process.cwd(), "server_products.json");
 let contactMessagesTableExists = true;
+
+function getLocalProductsStore(): Record<string, any> {
+  try {
+    if (fs.existsSync(PRODUCTS_STORE_FILE)) {
+      const data = fs.readFileSync(PRODUCTS_STORE_FILE, "utf-8");
+      return JSON.parse(data);
+    }
+  } catch (err) {
+    console.error("Error reading local products store file:", err);
+  }
+  return {};
+}
+
+function saveLocalProductsStore(store: Record<string, any>): void {
+  try {
+    fs.writeFileSync(PRODUCTS_STORE_FILE, JSON.stringify(store, null, 2), "utf-8");
+  } catch (err) {
+    console.error("Error writing local products store file:", err);
+  }
+}
 
 function getLocalEnquiries(): any[] {
   try {
@@ -382,6 +403,144 @@ async function startServer() {
     }
 
     res.json({ success: true, deletedFromSupabase });
+  });
+
+  // API Route: Get all server-persisted product updates
+  app.get("/api/products/store", (req, res) => {
+    try {
+      const store = getLocalProductsStore();
+      res.json(store);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || "Failed to load product store" });
+    }
+  });
+
+  // API Route: Update product price and details with DB sync
+  app.post("/api/products/update", async (req, res) => {
+    try {
+      const { id, updates } = req.body;
+      if (!id || !updates) {
+        return res.status(400).json({ error: "Product ID and updates are required." });
+      }
+
+      // 1. Save locally to server store
+      const store = getLocalProductsStore();
+      store[id] = {
+        ...(store[id] || {}),
+        ...updates
+      };
+      saveLocalProductsStore(store);
+
+      // 2. Also update Supabase database directly from backend
+      const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "";
+      const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY || "";
+      let dbUpdated = false;
+      let dbErrorMsg: string | null = null;
+
+      if (supabaseUrl && supabaseAnonKey) {
+        try {
+          const supabase = createClient(supabaseUrl, supabaseAnonKey);
+          
+          const cleanPayload: Record<string, any> = {};
+          if (updates.price !== undefined) cleanPayload.price = Number(updates.price);
+          if (updates.name !== undefined) cleanPayload.name = updates.name;
+          if (updates.description !== undefined) cleanPayload.description = updates.description;
+          if (updates.image !== undefined) cleanPayload.image = updates.image;
+          if (updates.sku !== undefined) cleanPayload.sku = updates.sku;
+          if (updates.stock !== undefined) cleanPayload.stock = Number(updates.stock);
+          if (updates.featured !== undefined) cleanPayload.featured = Boolean(updates.featured);
+
+          if (Object.keys(cleanPayload).length > 0) {
+            // Attempt 1: Update by ID
+            const { data: idRows, error: idErr } = await supabase
+              .from("products")
+              .update(cleanPayload)
+              .eq("id", id)
+              .select();
+
+            if (!idErr && idRows && idRows.length > 0) {
+              dbUpdated = true;
+            } else {
+              if (idErr) dbErrorMsg = idErr.message;
+
+              // Attempt 2: Update by SKU
+              if (updates.sku) {
+                const { data: skuRows, error: skuErr } = await supabase
+                  .from("products")
+                  .update(cleanPayload)
+                  .eq("sku", updates.sku)
+                  .select();
+
+                if (!skuErr && skuRows && skuRows.length > 0) {
+                  dbUpdated = true;
+                }
+              }
+
+              // Attempt 3: Update by Name
+              if (!dbUpdated && updates.name) {
+                const { data: nameRows, error: nameErr } = await supabase
+                  .from("products")
+                  .update(cleanPayload)
+                  .eq("name", updates.name)
+                  .select();
+
+                if (!nameErr && nameRows && nameRows.length > 0) {
+                  dbUpdated = true;
+                }
+              }
+
+              // Attempt 4: Insert missing row into Supabase
+              if (!dbUpdated) {
+                const slug = (updates.name || "product")
+                  .toLowerCase()
+                  .replace(/[^a-z0-9]+/g, "-")
+                  .replace(/(^-|-$)+/g, "");
+
+                const insertPayload: any = {
+                  name: updates.name || "Product",
+                  price: Number(updates.price) || 0,
+                  description: updates.description || "",
+                  image: updates.image || "",
+                  sku: updates.sku || "",
+                  stock: Number(updates.stock) || 15,
+                  featured: Boolean(updates.featured),
+                  status: "published",
+                  slug: slug,
+                  ...cleanPayload
+                };
+
+                if (/^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(id)) {
+                  insertPayload.id = id;
+                }
+
+                const { error: insErr } = await supabase
+                  .from("products")
+                  .insert(insertPayload);
+
+                if (!insErr) {
+                  dbUpdated = true;
+                } else {
+                  dbErrorMsg = insErr.message;
+                }
+              }
+            }
+          }
+        } catch (ex: any) {
+          dbErrorMsg = ex.message;
+        }
+      }
+
+      console.log(`[Server /api/products/update] Product ${id} updated with price ${updates.price}. DB updated: ${dbUpdated}`);
+
+      res.json({
+        success: true,
+        dbUpdated,
+        dbError: dbErrorMsg,
+        savedLocally: true
+      });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message || "Failed to update product" });
+    }
   });
 
   // Serve Vite in dev mode, static files in production
